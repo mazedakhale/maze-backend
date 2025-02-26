@@ -37,8 +37,12 @@ export class Document {
   @Column({ type: 'text', nullable: false })
   address: string;
 
+  // @Column('json', { nullable: false })
+  // documents: { document_type: string; file_path: string }[];
+
   @Column('json', { nullable: false })
-  documents: { document_type: string; file_path: string }[];
+documents: { document_type: string; mimetype: string; file_path: string }[];
+
 
   @Column({
     type: 'enum',

@@ -56,6 +56,7 @@ export class SubcategoriesService {
     subcategory.subcategory_name = subcategoryName;
     return this.subcategoryRepository.save(subcategory);
   }
+  
 
   async remove(subcategoryId: number): Promise<{ message: string }> {
     const subcategory = await this.findOne(subcategoryId);

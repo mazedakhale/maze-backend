@@ -65,18 +65,20 @@ export class FeildNamesService {
         return feildName;
     }
 
-    async update(id: number, feildNameData: Partial<FeildName>): Promise<FeildName> {
-        await this.feildNamesRepository.update(id, feildNameData);
-
-        const updatedFeild = await this.feildNamesRepository.findOne({ where: { id } });
-
-        if (!updatedFeild) {
-            throw new NotFoundException(`FeildName with ID ${id} not found`);
+    async updateDocumentField(id: number, documentFields: string): Promise<FeildName> {
+        // Update only the document_fields column
+        await this.feildNamesRepository.update(id, { document_fields: documentFields });
+      
+        // Fetch the updated record
+        const updatedField = await this.feildNamesRepository.findOne({ where: { id } });
+      
+        if (!updatedField) {
+          throw new NotFoundException(`FieldName with ID ${id} not found`);
         }
-
-        return updatedFeild;
-    }
-
+      
+        return updatedField;
+      }
+      
 
     async findByCategoryAndSubcategory(categoryId: number, subcategoryId: number): Promise<FeildName[]> {
         const fieldNames = await this.feildNamesRepository.find({

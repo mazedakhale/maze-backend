@@ -5,6 +5,7 @@ import { Document } from '../documents/entities/documents.entity';
 import { S3 } from 'aws-sdk';
 import * as archiver from 'archiver';
 import { Response } from 'express';
+import * as path from 'path';
 
 @Injectable()
 export class DownloadService {
@@ -36,15 +37,29 @@ export class DownloadService {
     try {
       // 4️⃣ Fetch Files from S3 and Append to ZIP
       for (const doc of document.documents) {
-        const s3Key = doc.file_path.trim(); // Ensure trimmed path
+        let s3Key = doc.file_path.trim(); // Ensure no extra spaces
+
+        // Extract only the object key from the full S3 URL
+        const s3Bucket = 'vendorpunam';
+        const baseUrl = `https://s3.ap-south-1.amazonaws.com/${s3Bucket}/`;
+        if (s3Key.startsWith(baseUrl)) {
+          s3Key = s3Key.replace(baseUrl, '');
+        }
+
         try {
           const s3Object = await this.s3.getObject({
-            Bucket: 'vendorpunam',
+            Bucket: s3Bucket,
             Key: s3Key,
           }).promise();
 
           if (s3Object.Body) {
-            archive.append(s3Object.Body as Buffer, { name: doc.document_type });
+            // Extract file extension from the S3 key
+            const fileExtension = path.extname(s3Key) || '';
+            
+            // Name the file as document_type + extension (e.g., report.pdf)
+            const fileName = `${doc.document_type}${fileExtension}`;
+
+            archive.append(s3Object.Body as Buffer, { name: fileName });
           } else {
             console.warn(`⚠️ Skipped empty file from S3: ${s3Key}`);
           }

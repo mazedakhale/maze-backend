@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Query, Delete, Param, Body, NotFoundException, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Query, Delete, Param, Body, NotFoundException, ParseIntPipe, Patch } from '@nestjs/common';
 import { FeildNamesService } from './feild_names.service';
 import { FeildName } from './entities/feild_names.entity';
 
@@ -38,13 +38,14 @@ export class FeildNamesController {
         return fieldNames;
     }
 
-    @Put(':id')
-    async update(
-        @Param('id') id: number,
-        @Body() feildNameData: Partial<FeildName>
+    @Patch(':id')
+    async updateDocumentField(
+      @Param('id') id: number,
+      @Body('document_fields') documentFields: string
     ): Promise<FeildName> {
-        return await this.feildNamesService.update(id, feildNameData);
+      return await this.feildNamesService.updateDocumentField(id, documentFields);
     }
+    
 
     @Delete(':id')
     async remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {

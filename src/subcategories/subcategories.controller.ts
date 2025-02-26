@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, Patch } from '@nestjs/common';
 import { SubcategoriesService } from './subcategories.service';
 
 @Controller('subcategories')
@@ -25,8 +25,11 @@ export class SubcategoriesController {
     return this.subcategoriesService.findByCategory(categoryId);
   }
 
-  @Put(':id')
-  async update(@Param('id', ParseIntPipe) subcategoryId: number, @Body('subcategory_name') subcategoryName: string) {
+  @Patch(':id')
+  async update(
+    @Param('id', ParseIntPipe) subcategoryId: number,
+    @Body('subcategory_name') subcategoryName: string,
+  ) {
     return this.subcategoriesService.update(subcategoryId, subcategoryName);
   }
 

@@ -45,11 +45,12 @@ export class RequiredDocumentsService {
         return requiredDocument;
     }
 
-    async update(id: number, documentNames: string): Promise<RequiredDocument> {
+    async updateDocumentName(id: number, documentNames: string): Promise<RequiredDocument> {
         const requiredDocument = await this.findOne(id);
         requiredDocument.document_names = documentNames;
         return this.requiredDocumentRepository.save(requiredDocument);
     }
+    
 
     async remove(id: number): Promise<{ message: string }> {
         const requiredDocument = await this.findOne(id);

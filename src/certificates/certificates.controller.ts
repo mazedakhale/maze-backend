@@ -7,7 +7,8 @@ import {
     UploadedFile,
     Body,
     BadRequestException,
-    InternalServerErrorException
+    InternalServerErrorException,
+    Patch
   } from '@nestjs/common';
   import { CertificatesService } from './certificates.service';
   import { FileInterceptor } from '@nestjs/platform-express';
@@ -52,5 +53,26 @@ import {
   async getCertificatesByDocumentId(@Param('documentId') documentId: string) {
     return this.certificatesService.getCertificatesByDocumentId(documentId);
   }
+
+
+
+  @Patch('update/:documentId')
+@UseInterceptors(FileInterceptor('file'))
+async updateCertificateFile(
+  @Param('documentId') documentId: string,
+  @UploadedFile() file: Express.Multer.File
+) {
+  try {
+    if (!file) {
+      throw new BadRequestException('File is required for update.');
+    }
+
+    return await this.certificatesService.updateCertificateFile(documentId, file);
+  } catch (error) {
+    console.error('❌ Update Controller Error:', error);
+    throw new InternalServerErrorException('Failed to update certificate file.');
+  }
+}
+
   }
   

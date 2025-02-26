@@ -107,4 +107,40 @@ export class CertificatesService {
     return certificates;
   }
   
+
+
+  async updateCertificateFile(documentId: string, file: Express.Multer.File) {
+    const id = Number(documentId);
+  
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid document ID.');
+    }
+  
+    // ✅ Find the certificate by document ID
+    const certificate = await this.certificateRepository.findOne({ where: { document_id: id } });
+  
+    if (!certificate) {
+      throw new NotFoundException(`Certificate with Document ID ${documentId} not found.`);
+    }
+  
+    // ✅ Validate file type
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Only JPG, PNG, WEBP, and PDF files are allowed.');
+    }
+  
+    // ✅ Upload new file to S3
+    const newFileUrl = await this.s3Service.uploadFile(file);
+  
+    // ✅ Update the certificate's file_url
+    certificate.file_url = newFileUrl;
+  
+    // ✅ Save the updated certificate
+    const updatedCertificate = await this.certificateRepository.save(certificate);
+  
+    console.log('✅ Certificate updated successfully:', updatedCertificate);
+  
+    return { message: 'Certificate file updated successfully.', certificate: updatedCertificate };
+  }
+  
 }

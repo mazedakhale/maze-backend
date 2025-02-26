@@ -314,15 +314,30 @@ Aaradhya Cyber`,
       }
   
       // ✅ Upload files to S3 and store their details
+      // const documentFiles = await Promise.all(
+      //   files.map(async (file) => {
+      //     const fileUrl = await this.s3Service.uploadFile(file);
+      //     return {
+      //       document_type: file.mimetype,
+      //       file_path: fileUrl,
+      //     };
+      //   })
+      // );
+
       const documentFiles = await Promise.all(
-        files.map(async (file) => {
+        files.map(async (file, index) => {
           const fileUrl = await this.s3Service.uploadFile(file);
+      
+          const customDocType = body.document_types ? body.document_types[index] : null;
+      
           return {
-            document_type: file.mimetype,
+            document_type: customDocType || file.originalname.split('.')[0], // Custom name
+            mimetype: file.mimetype, // ✅ Store MIME type for safety
             file_path: fileUrl,
           };
         })
       );
+      
   
       // ✅ Parse document_fields safely
       let documentFields = {};

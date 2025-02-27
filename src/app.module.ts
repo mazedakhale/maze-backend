@@ -22,6 +22,7 @@ import { DownloadModule } from './download/download.module';
 import { SingleDocumentModule } from './singledocument/singledocument.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RequestErrorsModule } from './request-errors/request-errors.module';
+import { DownloadCertificateModule } from './download-certificate/download-certificate.module';
 
 
 config();
@@ -57,7 +58,8 @@ config();
     DownloadModule,
     SingleDocumentModule,
     NotificationsModule,
-    RequestErrorsModule
+    RequestErrorsModule,
+    DownloadCertificateModule
   ],
   controllers: [AppController],
   providers: [AppService],

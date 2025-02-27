@@ -22,4 +22,12 @@ export class Certificate {
 
   @CreateDateColumn({ type: 'timestamp' })
   certified_date: Date;
+
+  @Column({ type: 'varchar', length: 10, unique: true })
+  application_id: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: false })
+  name: string;
+
+
 }

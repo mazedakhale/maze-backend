@@ -42,13 +42,24 @@ export class CertificatesService {
       // ✅ Ensure distributor_id is stored as the correct type
       const distributorId = body.distributor_id ? String(body.distributor_id) : undefined;
 
+
+      const applicationId = body.application_id ? String(body.application_id) : null;
+    const name = body.name ? String(body.name) : null;
+
+    if (!applicationId || !name) {
+      throw new BadRequestException('Application ID and Name are required.');
+    }
+
       // ✅ Create a new certificate object
       const certificate = this.certificateRepository.create({
-        certificate_name: body.certificate_name || 'Unnamed Certificate',
+        certificate_name: body.certificate_name || 'Certificate',
         user_id: userId,
         document_id: documentId,
         distributor_id: distributorId,
         file_url: fileUrl,
+
+        application_id: applicationId,
+      name: name,
       });
 
       // ✅ Save the certificate in the database

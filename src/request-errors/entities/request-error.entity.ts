@@ -32,6 +32,12 @@ export class RequestError {
   @Column({ type: 'varchar', length: 10, unique: true })
   application_id: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: false })
+  request_name: string; // ✅ Updated: Name Field
+
+  @Column({ type: 'varchar', length: 100, nullable: false })
+  request_email: string; // ✅ Updated: Email Field
+
   @CreateDateColumn({ type: 'timestamp' })
   request_date: Date;
 }

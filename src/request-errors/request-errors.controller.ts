@@ -64,8 +64,9 @@ import {
   async updateRequestStatus(
     @Param('requestId') requestId: number,
     @Body('request_status') request_status: string, // ✅ Use correct key
+    @Body('rejectionReason') rejectionReason?: string
   ) {
-    const updatedRequest = await this.requestErrorsService.updateRequestStatus(requestId, request_status);
+    const updatedRequest = await this.requestErrorsService.updateRequestStatus(requestId, request_status,rejectionReason);
     if (!updatedRequest) {
       throw new NotFoundException(`Request with ID ${requestId} not found`);
     }

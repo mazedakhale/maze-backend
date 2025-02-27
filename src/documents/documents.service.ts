@@ -95,41 +95,7 @@ Aaradhya Cyber`,
     }
   }
 
-  // Send email when document status is "Rejected"
-//   async sendStatusRejectedEmail(document: any) {
-//     const transporter = nodemailer.createTransport({
-//       service: 'gmail',
-//       auth: {
-//         user: 'rutujadeshmukh175@gmail.com', // Your email address
-//         pass: 'hzaj osby vnsh ctyq', // Your email password or app password
-//       },
-//     });
-
-//     const mailOptions = {
-//       from: 'rutujadeshmukh175@gmail.com',
-//       to: document.email,
-//       subject: 'Application Status: Rejected',
-//       text: `Dear ${document.name},
-
-// We regret to inform you that your application for the category "${document.category_name}" has been rejected.
-
-// Please contact us for the next steps.
-
-// Best regards,
-// Aaradhya Cyber`,
-//     };
-
-//     try {
-//       await transporter.sendMail(mailOptions);
-//       console.log('✅ Email sent successfully');
-//     } catch (error) {
-//       console.error('❌ Error sending email:', error);
-//     }
-//   }
-
-
-
-
+ 
 async sendStatusRejectedEmail(document: any, rejectionReason: string) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',

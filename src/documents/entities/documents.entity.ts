@@ -34,7 +34,7 @@ export class Document {
   @Column({ type: 'varchar', length: 20, nullable: false })
   phone: string;
 
-  @Column({ type: 'text', nullable: false })
+  @Column({ type: 'text', nullable: true })
   address: string;
 
   // @Column('json', { nullable: false })

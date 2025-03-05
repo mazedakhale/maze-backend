@@ -1,5 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { Feedback } from 'src/feedback/entities/feedback.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
 
 export enum UserRole {
   ADMIN = 'Admin',
@@ -8,41 +8,51 @@ export enum UserRole {
 }
 
 export enum LoginStatus {
-  APPROVE = 'Approve',
-  REJECT = 'Reject',
+  ACTIVE = 'Active',
+  INACTIVE = 'Inactive',
 }
 
 @Entity('users')
 export class User {
-  @ApiProperty()
+  [x: string]: any;
   @PrimaryGeneratedColumn()
   user_id: number;
 
-  @ApiProperty()
   @Column({ length: 255 })
   name: string;
 
-  @ApiProperty({ uniqueItems: true })
   @Column({ unique: true, length: 255 })
   email: string;
 
-  @ApiProperty()
   @Column({ length: 255 })
   password: string;
 
-  @ApiProperty()
   @Column({ length: 15, nullable: true })
   phone: string;
 
-  @ApiProperty({ enum: UserRole })
-  @Column({ type: 'enum', enum: UserRole })
+  @Column({ length: 500, nullable: true })
+  address: string;
+
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  shop_address: string | null;
+
+
+  @Column({ type: 'enum', enum: UserRole, nullable: true })
   role: UserRole;
 
-  @ApiProperty({ enum: LoginStatus })
-  @Column({ type: 'enum', enum: LoginStatus, default: LoginStatus.APPROVE })
+  @Column({ type: 'enum', enum: LoginStatus, nullable: true })
   user_login_status: LoginStatus;
 
-  @ApiProperty()
   @CreateDateColumn()
   created_at: Date;
+
+  @Column('json', { nullable: true })
+  user_documents: {
+    document_type: string;
+    mimetype: string;
+    file_path: string;
+  }[];
+  // @OneToMany(() => Feedback, (feedback) => feedback.user)
+  // feedbacks: Feedback[];
 }

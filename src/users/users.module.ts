@@ -6,6 +6,9 @@ import { User } from './entities/users.entity';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 
+import { S3Service } from './s3.service';
+
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
@@ -20,6 +23,6 @@ import { UsersController } from './users.controller';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, S3Service], 
 })
 export class UsersModule {}

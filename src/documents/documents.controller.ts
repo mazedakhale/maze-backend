@@ -64,6 +64,25 @@ export class DocumentsController {
   }
 
 
+  @Get('list_nodistributor')
+  async getAllDocumentsNoDistributor() {
+    try {
+      return this.documentsService.getAllDocumentsNoDistributor(); // Call the correct method
+    } catch (error) {
+      console.error('❌ Error fetching documents:', error);
+      throw new InternalServerErrorException('Failed to fetch documents');
+    }
+  }
+
+  @Get('assigned-list')
+  async getAssignedDocuments() {
+    try {
+      return this.documentsService.getAssignedDocuments();
+    } catch (error) {
+      console.error('❌ Error fetching assigned documents:', error);
+      throw new InternalServerErrorException('Failed to fetch assigned documents');
+    }
+  }
 
 
   // 📌 PUT API to update document status
@@ -87,22 +106,22 @@ export class DocumentsController {
 
 
   @Put('update-status/:id')
-async updateDocumentStatus(
-  @Param('id') documentId: number,
-  @Body('status') status: string,
-  @Body('rejectionReason') rejectionReason?: string, // Accept rejection reason
-) {
-  try {
-    if (!status) {
-      throw new BadRequestException('Status is required.');
-    }
+  async updateDocumentStatus(
+    @Param('id') documentId: number,
+    @Body('status') status: string,
+    @Body('rejectionReason') rejectionReason?: string, // Accept rejection reason
+  ) {
+    try {
+      if (!status) {
+        throw new BadRequestException('Status is required.');
+      }
 
-    return this.documentsService.updateDocumentStatus(documentId, status, rejectionReason);
-  } catch (error) {
-    console.error('❌ Error updating status:', error);
-    throw new InternalServerErrorException('Failed to update document status');
+      return this.documentsService.updateDocumentStatus(documentId, status, rejectionReason);
+    } catch (error) {
+      console.error('❌ Error updating status:', error);
+      throw new InternalServerErrorException('Failed to update document status');
+    }
   }
-}
 
 
 
@@ -173,32 +192,32 @@ async updateDocumentStatus(
     return this.documentsService.findByCategoryAndSubcategory(categoryId, subcategoryId);
   }
 
-  
+
   @Get(':categoryId/:subcategoryId/:distributorId')
-async findDocuments(
-  @Param('categoryId') categoryId: number,
-  @Param('subcategoryId') subcategoryId: number,
-  @Param('distributorId') distributorId: string,
-) {
-  return this.documentsService.findByCategorySubcategoryAndDistributor(categoryId, subcategoryId, distributorId);
-}
+  async findDocuments(
+    @Param('categoryId') categoryId: number,
+    @Param('subcategoryId') subcategoryId: number,
+    @Param('distributorId') distributorId: string,
+  ) {
+    return this.documentsService.findByCategorySubcategoryAndDistributor(categoryId, subcategoryId, distributorId);
+  }
 
 
 
-@Get('doc/:categoryId/:subcategoryId/:userId')
-async findDocumentsByUser(
-  @Param('categoryId') categoryId: number,
-  @Param('subcategoryId') subcategoryId: number,
-  @Param('userId') userId: number,
-) {
-  return this.documentsService.findByCategorySubcategoryAndUser(categoryId, subcategoryId, userId);
-}
+  @Get('doc/:categoryId/:subcategoryId/:userId')
+  async findDocumentsByUser(
+    @Param('categoryId') categoryId: number,
+    @Param('subcategoryId') subcategoryId: number,
+    @Param('userId') userId: number,
+  ) {
+    return this.documentsService.findByCategorySubcategoryAndUser(categoryId, subcategoryId, userId);
+  }
 
 
 
 
 
-  
+
 
 
 }

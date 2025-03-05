@@ -5,6 +5,7 @@ import { Document } from './entities/documents.entity';
 import { Express } from 'express';
 import { S3Service } from './s3.service';
 import * as nodemailer from 'nodemailer';
+import { IsNull, Not } from "typeorm";
 
 
 @Injectable()
@@ -25,23 +26,51 @@ export class DocumentsService {
       throw new InternalServerErrorException('Could not fetch documents');
     }
   }
-  
 
+
+  async getAllDocumentsNoDistributor() {
+    try {
+      const documents = await this.documentRepository.find({
+        where: { distributor_id: IsNull() }, // Fetch only documents where distributor_id is NULL
+      });
+      return { message: 'Documents fetched successfully', documents };
+    } catch (error) {
+      console.error('❌ Error fetching documents:', error);
+      throw new InternalServerErrorException('Could not fetch documents');
+    }
+  }
+
+  async getAssignedDocuments() {
+    try {
+      const assignedDocuments = await this.documentRepository.find({
+        where: { distributor_id: Not(IsNull()) }, // Fetch only assigned applications
+        order: { uploaded_at: 'DESC' }, // Sort by uploaded_at in descending order
+      });
+
+      return {
+        message: 'Assigned Documents fetched successfully',
+        documents: assignedDocuments
+      };
+    } catch (error) {
+      console.error('❌ Error fetching assigned documents:', error);
+      throw new InternalServerErrorException('Could not fetch assigned documents');
+    }
+  }
 
 
   async updateDocumentStatus(documentId: number, status: string, rejectionReason?: string) {
     try {
       // Find the document by its ID
       const document = await this.documentRepository.findOne({ where: { document_id: documentId } });
-  
+
       if (!document) {
         throw new BadRequestException('Document not found.');
       }
-  
+
       // Update the document status
       document.status = status;
       const updatedDocument = await this.documentRepository.save(document);
-  
+
       // Send email based on the updated status
       if (status === 'Approved') {
         await this.sendStatusApprovedEmail(updatedDocument); // Send approved email
@@ -55,14 +84,14 @@ export class DocumentsService {
       } else if (status === 'Uploaded') {
         await this.sendStatusUploadedEmail(updatedDocument); // Send uploaded email
       }
-  
+
       return { message: 'Status updated successfully', document: updatedDocument };
     } catch (error) {
       console.error('❌ Error updating status:', error);
       throw new InternalServerErrorException('Could not update document status');
     }
   }
-  
+
   // Send email when document status is "Approved"
   async sendStatusApprovedEmail(document: any) {
     const transporter = nodemailer.createTransport({
@@ -95,21 +124,21 @@ Aaradhya Cyber`,
     }
   }
 
- 
-async sendStatusRejectedEmail(document: any, rejectionReason: string) {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'rutujadeshmukh175@gmail.com', // Your email address
-      pass: 'hzaj osby vnsh ctyq', // Your email password or app password
-    },
-  });
 
-  const mailOptions = {
-    from: 'rutujadeshmukh175@gmail.com',
-    to: document.email,
-    subject: 'Application Status: Rejected',
-    text: `Dear ${document.name},
+  async sendStatusRejectedEmail(document: any, rejectionReason: string) {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'rutujadeshmukh175@gmail.com', // Your email address
+        pass: 'hzaj osby vnsh ctyq', // Your email password or app password
+      },
+    });
+
+    const mailOptions = {
+      from: 'rutujadeshmukh175@gmail.com',
+      to: document.email,
+      subject: 'Application Status: Rejected',
+      text: `Dear ${document.name},
 
 We regret to inform you that your application for the category "${document.category_name}" has been rejected.
 
@@ -120,15 +149,15 @@ Please contact us for the next steps.
 
 Best regards,
 Aaradhya Cyber`,
-  };
+    };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully');
-  } catch (error) {
-    console.error('❌ Error sending email:', error);
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('✅ Email sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending email:', error);
+    }
   }
-}
 
   // Send email when document status is "Completed"
   async sendStatusCompletedEmail(document: any) {
@@ -273,12 +302,12 @@ Aaradhya Cyber`,
     try {
       console.log('📂 Received Files:', files);
       console.log('📝 Received Body:', body);
-  
+
       // ✅ Validate that at least one file is uploaded
       if (!files || files.length === 0) {
         throw new BadRequestException('At least one file must be uploaded.');
       }
-  
+
       // ✅ Upload files to S3 and store their details
       // const documentFiles = await Promise.all(
       //   files.map(async (file) => {
@@ -293,9 +322,9 @@ Aaradhya Cyber`,
       const documentFiles = await Promise.all(
         files.map(async (file, index) => {
           const fileUrl = await this.s3Service.uploadFile(file);
-      
+
           const customDocType = body.document_types ? body.document_types[index] : null;
-      
+
           return {
             document_type: customDocType || file.originalname.split('.')[0], // Custom name
             mimetype: file.mimetype, // ✅ Store MIME type for safety
@@ -303,8 +332,8 @@ Aaradhya Cyber`,
           };
         })
       );
-      
-  
+
+
       // ✅ Parse document_fields safely
       let documentFields = {};
       if (body.document_fields) {
@@ -315,31 +344,31 @@ Aaradhya Cyber`,
           throw new BadRequestException('Invalid JSON format for document_fields.');
         }
       }
-  
+
       // ✅ Ensure user_id is properly parsed
       const userId = parseInt(body.user_id, 10);
       if (isNaN(userId)) {
         throw new BadRequestException('Invalid user_id. It must be a number.');
       }
-  
+
       // ✅ Ensure category_id and subcategory_id are properly parsed
       const categoryId = parseInt(body.category_id, 10);
       if (isNaN(categoryId)) {
         throw new BadRequestException('Invalid category_id. It must be a number.');
       }
-  
+
       const subcategoryId = parseInt(body.subcategory_id, 10);
       if (isNaN(subcategoryId)) {
         throw new BadRequestException('Invalid subcategory_id. It must be a number.');
       }
-  
+
       // ✅ Check for distributor_id (allow null)
       const distributorId = body.distributor_id || null;
-  
+
       // ✅ Generate a unique application_id (APL + 6-digit number)
       let uniqueApplicationId = '';
       let unique = false;
-      
+
       while (!unique) {
         uniqueApplicationId = `APL${Math.floor(100000 + Math.random() * 900000)}`;
         const existingDocument = await this.documentRepository.findOne({
@@ -349,7 +378,7 @@ Aaradhya Cyber`,
           unique = true;
         }
       }
-  
+
       // ✅ Create the document entry
       const document = this.documentRepository.create({
         user_id: userId,
@@ -367,21 +396,21 @@ Aaradhya Cyber`,
         document_fields: documentFields, // ✅ Store new document fields
         application_id: uniqueApplicationId, // ✅ Store generated application ID
       });
-  
+
       // ✅ Save document to the database
       const savedDocument = await this.documentRepository.save(document);
       console.log('✅ Document saved successfully:', savedDocument);
-  
+
       // ✅ Send email notification after successful upload
       await this.sendDocumentSubmissionEmail(savedDocument);
-  
+
       return { message: 'Upload successful', document: savedDocument };
     } catch (error) {
       console.error('❌ Error saving document:', error);
       throw new InternalServerErrorException('Failed to process document upload');
     }
   }
-  
+
 
   // Helper function to send email
   async sendDocumentSubmissionEmail(document: any) {
@@ -509,55 +538,55 @@ Aaradhya Cyber`,
       console.error('❌ Error fetching documents:', error);
       return [];
     }
-}
-
-
-async findByCategorySubcategoryAndDistributor(categoryId: number, subcategoryId: number, distributorId?: string) {
-  try {
-    const whereCondition: any = {
-      category_id: categoryId,
-      subcategory_id: subcategoryId,
-    };
-
-    if (distributorId && distributorId !== 'null') {
-      whereCondition.distributor_id = distributorId;
-    }
-
-    const documents = await this.documentRepository.find({ where: whereCondition });
-
-    return documents.length ? documents : { message: 'No documents found', documents: [] };
-  } catch (error) {
-    console.error('❌ Error fetching documents:', error);
-    return { message: 'Failed to fetch documents', error: error.message };
   }
-}
 
 
-
-
-async findByCategorySubcategoryAndUser(categoryId: number, subcategoryId: number, userId: number) {
-  try {
-    let documents = await this.documentRepository.find({
-      where: {
+  async findByCategorySubcategoryAndDistributor(categoryId: number, subcategoryId: number, distributorId?: string) {
+    try {
+      const whereCondition: any = {
         category_id: categoryId,
         subcategory_id: subcategoryId,
-        user_id: userId,
-      },
-    });
+      };
 
-    return documents.length ? documents : [];
-  } catch (error) {
-    console.error('❌ Error fetching documents:', error);
-    return [];
+      if (distributorId && distributorId !== 'null') {
+        whereCondition.distributor_id = distributorId;
+      }
+
+      const documents = await this.documentRepository.find({ where: whereCondition });
+
+      return documents.length ? documents : { message: 'No documents found', documents: [] };
+    } catch (error) {
+      console.error('❌ Error fetching documents:', error);
+      return { message: 'Failed to fetch documents', error: error.message };
+    }
   }
-}
+
+
+
+
+  async findByCategorySubcategoryAndUser(categoryId: number, subcategoryId: number, userId: number) {
+    try {
+      let documents = await this.documentRepository.find({
+        where: {
+          category_id: categoryId,
+          subcategory_id: subcategoryId,
+          user_id: userId,
+        },
+      });
+
+      return documents.length ? documents : [];
+    } catch (error) {
+      console.error('❌ Error fetching documents:', error);
+      return [];
+    }
+  }
 
 
 
 
 
 
-  
+
 }
 
 

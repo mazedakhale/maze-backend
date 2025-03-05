@@ -23,6 +23,7 @@ import { SingleDocumentModule } from './singledocument/singledocument.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RequestErrorsModule } from './request-errors/request-errors.module';
 import { DownloadCertificateModule } from './download-certificate/download-certificate.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 
 config();
@@ -40,6 +41,8 @@ config();
       password: process.env.DB_PASS || '',
       database: process.env.DB_NAME || 'vendor',
       autoLoadEntities: true,
+      dropSchema: false, // Be careful with this in production
+
       synchronize: true, // Disable in production and use migrations instead
       // migrationsRun: true, // Run migrations instead
       // migrations: ['dist/migrations/*.js'],
@@ -59,7 +62,8 @@ config();
     SingleDocumentModule,
     NotificationsModule,
     RequestErrorsModule,
-    DownloadCertificateModule
+    DownloadCertificateModule,
+    FeedbackModule
   ],
   controllers: [AppController],
   providers: [AppService],

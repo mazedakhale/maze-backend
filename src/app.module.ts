@@ -24,6 +24,9 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RequestErrorsModule } from './request-errors/request-errors.module';
 import { DownloadCertificateModule } from './download-certificate/download-certificate.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { FieldModule } from './feild/feild.module';
+import { ContactModule } from './contact/contact.module';
+import { PrivacyPolicyModule } from './privacy-policy/privacy-policy.module';
 
 
 config();
@@ -63,8 +66,10 @@ config();
     NotificationsModule,
     RequestErrorsModule,
     DownloadCertificateModule,
-    FeedbackModule
-  ],
+    FeedbackModule,
+    FieldModule,
+    ContactModule,
+    PrivacyPolicyModule],
   controllers: [AppController],
   providers: [AppService],
 })

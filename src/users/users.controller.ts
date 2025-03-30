@@ -68,17 +68,26 @@ export class UsersController {
       files?.files || [],
       documentTypes
     );
+  }
 
   // ✅ Update password for a specific user
+
   @Patch('password/:id')
   async updatePassword(
-    @Param('id') userId: number,
+    @Param('id') userId: string, // Extracted as string
     @Body() body: { newPassword: string },
   ): Promise<string> {
+    const id = parseInt(userId, 10); // Convert to number
+
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+
     if (!body.newPassword) {
       throw new BadRequestException('New password is required');
     }
-    return this.usersService.updatePassword(userId, body.newPassword);
+
+    return this.usersService.updatePassword(id, body.newPassword);
   }
 
   // ✅ User login

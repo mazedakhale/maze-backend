@@ -100,7 +100,7 @@ Aaradhya Cyber`,
       throw new NotFoundException('User not found');
     }
 
-    user.password = newPassword; // 🚨 Saves plain text password (Not Secure)
+    user.password = newPassword; // ⚠️ Storing password as plain text (Not Recommended)
     await this.userRepository.save(user);
 
     // Send Email Notification
@@ -108,6 +108,7 @@ Aaradhya Cyber`,
 
     return 'Password updated successfully, and email notification sent.';
   }
+
   async sendPasswordUpdateEmail(user: User, newPassword: string): Promise<void> {
     let transporter = nodemailer.createTransport({
       service: 'gmail',

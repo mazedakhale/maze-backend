@@ -38,17 +38,14 @@ config();
     }),
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306, // Ensuring proper number parsing
-      username: process.env.DB_USER || 'root',
-      password: process.env.DB_PASS || '',
-      database: process.env.DB_NAME || 'vendor',
+      host: 'localhost',
+      port: 3306,
+      username: 'myapp_user',
+      password: 'Dalal691*',
+      database: 'vmdb',
       autoLoadEntities: true,
-      dropSchema: false, // Be careful with this in production
+      synchronize: true,
 
-      synchronize: true, // Disable in production and use migrations instead
-      // migrationsRun: true, // Run migrations instead
-      // migrations: ['dist/migrations/*.js'],
     }),
     UsersModule,
     CategoriesModule,

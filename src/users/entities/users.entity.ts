@@ -46,6 +46,12 @@ export class User {
 
   @CreateDateColumn()
   created_at: Date;
+  @Column()
+  district: string; // Add district
+
+  @Column()
+  taluka: string; // Add taluka
+
 
   @Column('json', { nullable: true })
   user_documents: {

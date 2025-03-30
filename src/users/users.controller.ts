@@ -19,7 +19,7 @@ import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
 
 
@@ -42,15 +42,32 @@ export class UsersController {
   }
 
   @Get('customers')
-async getCustomers(): Promise<User[]> {
+  async getCustomers(): Promise<User[]> {
     return this.usersService.getCustomers();
-}
-
-  // ✅ Fetch all registered users
+  }
   @Get('register')
   async getRegisteredUsers(): Promise<User[]> {
     return this.usersService.getRegisteredUsers();
   }
+  @Post('register')
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'files', maxCount: 5 }])) // Max 5 files
+  async register(
+    @Body() body: Partial<User & { district: string; taluka: string }>,
+    @UploadedFiles() files: { files?: Express.Multer.File[] },
+    @Body('documentTypes') documentTypes: string[]
+  ): Promise<User> {
+    console.log("Received body:", body);
+    console.log("Received password:", body?.password); // Debugging
+
+    if (!body.password) {
+      throw new BadRequestException('Password is required');
+    }
+
+    return this.usersService.register(
+      body,
+      files?.files || [],
+      documentTypes
+    );
 
   // ✅ Update password for a specific user
   @Patch('password/:id')
@@ -90,14 +107,11 @@ async getCustomers(): Promise<User[]> {
 
   @Get('edit/:user_id')
   async getUser(@Param('user_id') userId: string): Promise<User> {
-      return this.usersService.getUserById(userId);
+    return this.usersService.getUserById(userId);
   }
 
-  @Post('register')
-  async register(@Body() data: { email: string; password: string; name: string }): Promise<User> {
-    return this.usersService.register(data);
-  }
-  
+
+
 
   // ✅ Login User & Return JWT Token
   @Post('login')
@@ -110,14 +124,14 @@ async getCustomers(): Promise<User[]> {
   @UseInterceptors(FileFieldsInterceptor([{ name: 'files', maxCount: 5 }])) // Max 5 files
   async updateUser(
     @Param('id') userId: number,
-    @Body() body: { phone: string; address: string; shopAddress: string|null; documentTypes: string[] },
+    @Body() body: { phone: string; address: string; shopAddress: string | null; documentTypes: string[] },
     @UploadedFiles() files: { files?: Express.Multer.File[] }
   ) {
     return this.usersService.updateUserWithDocuments(
       userId,
       body.phone,
       body.address,
-      body.shopAddress||null,
+      body.shopAddress || null,
       files?.files || [],
       body.documentTypes
     );

@@ -19,10 +19,10 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
-    private readonly s3Service: S3Service 
+    private readonly s3Service: S3Service
   ) { }
 
-  
+
   async updateUserStatus(userId: number, status: 'Active' | 'Inactive'): Promise<string> {
     const user = await this.userRepository.findOne({ where: { user_id: userId } });
 
@@ -38,10 +38,10 @@ export class UsersService {
     await this.sendStatusUpdateEmail(user, status);
 
     return `User status updated to ${status}`;
-}
+  }
 
-// 🚀 Send Email Notification for Status Update
-async sendStatusUpdateEmail(user: User, status: 'Active' | 'Inactive'): Promise<void> {
+  // 🚀 Send Email Notification for Status Update
+  async sendStatusUpdateEmail(user: User, status: 'Active' | 'Inactive'): Promise<void> {
     let transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -70,7 +70,7 @@ Aaradhya Cyber`,
     } catch (error) {
       console.error('Error sending email:', error);
     }
-}
+  }
 
 
 
@@ -83,9 +83,9 @@ Aaradhya Cyber`,
 
   async getCustomers(): Promise<User[]> {
     return await this.userRepository.find({
-        where: { role: UserRole.CUSTOMER },
+      where: { role: UserRole.CUSTOMER },
     });
-}
+  }
 
   // 🚀 Fetch All Registered Users
   async getRegisteredUsers(): Promise<User[]> {
@@ -208,23 +208,50 @@ Aaradhya Cyber`,
   }
 
 
-  async register(data: Partial<User>): Promise<User> {
+  async register(
+    data: Partial<User & { district: string; taluka: string }>, // Add district and taluka to the data type
+    files: Express.Multer.File[],
+    documentTypes: string[]
+  ): Promise<User> {
     const originalPassword: string = data.password ?? ''; // Ensure it's always a string
-  
-    const newUser = this.userRepository.create({ 
-      ...data, 
-      user_login_status: LoginStatus.ACTIVE // Default to "Approve"
+
+    // Validate that the role is provided
+    if (!data.role) {
+      throw new BadRequestException('Role is required');
+    }
+
+    // Create the user with the provided data
+    const newUser = this.userRepository.create({
+      ...data,
+      district: data.district, // Add district
+      taluka: data.taluka, // Add taluka
+      user_login_status: LoginStatus.INACTIVE, // Default to "Active"
     });
-  
+
+    // Upload documents if files are provided
+    if (files && files.length > 0) {
+      const uploadedDocuments = await Promise.all(
+        files.map(async (file, index) => ({
+          document_type: documentTypes[index] || 'Unknown', // Match documentType to file
+          mimetype: file.mimetype,
+          file_path: await this.s3Service.uploadFile(file),
+        }))
+      );
+
+      // Append uploaded documents to the user
+      newUser.user_documents = uploadedDocuments;
+    }
+
+    // Save the user to the database
     const savedUser = await this.userRepository.save(newUser);
-  
+
     // Send registration email
     await this.sendRegistrationEmail(savedUser, originalPassword);
-  
+
     return savedUser;
   }
-  
-  
+
+
 
   // ✅ User login with JWT token containing all user data
   async login(email: string, password: string): Promise<{ token: string; role: UserRole }> {
@@ -234,39 +261,39 @@ Aaradhya Cyber`,
 
     // Check if user login status is "Approve"
     if (user.user_login_status !== "Active") {
-        throw new UnauthorizedException('Wait for Admin Verification');
+      throw new UnauthorizedException('Wait for Admin Verification');
     }
 
     // JWT Payload (Ensure all necessary fields are included)
-    const payload = { 
-        user_id: user.user_id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        address: user.address,
-        shop_address: user.shop_address,
-        role: user.role,
-        user_login_status: user.user_login_status,
-        created_at: user.created_at,
-        user_documents: user.user_documents 
+    const payload = {
+      user_id: user.user_id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      address: user.address,
+      shop_address: user.shop_address,
+      role: user.role,
+      user_login_status: user.user_login_status,
+      created_at: user.created_at,
+      user_documents: user.user_documents
     };
 
     // Sign JWT Token with proper secret and expiration
     const token = this.jwtService.sign(payload, {
-        secret: process.env.JWT_SECRET, // Ensure you have this in your .env file
-        expiresIn: '1h', // Token expiration
+      secret: process.env.JWT_SECRET, // Ensure you have this in your .env file
+      expiresIn: '1h', // Token expiration
     });
 
     return { token, role: user.role };
-}
+  }
 
 
- 
+
   async updateUserWithDocuments(
     userId: number,
     phone: string,
     address: string,
-    shopAddress: string|null,
+    shopAddress: string | null,
     files: Express.Multer.File[],
     documentTypes: string[]
   ) {
@@ -276,7 +303,7 @@ Aaradhya Cyber`,
     // ✅ Update user details
     user.phone = phone;
     user.address = address;
-    user.shop_address = shopAddress||null;
+    user.shop_address = shopAddress || null;
     user.user_login_status = LoginStatus.INACTIVE; // Set to "Inactive"
 
     // ✅ Upload multiple documents
@@ -285,7 +312,7 @@ Aaradhya Cyber`,
         document_type: documentTypes[index] || 'Unknown', // Match documentType to file
         mimetype: file.mimetype,
         file_path: await this.s3Service.uploadFile(file),
-        
+
       }))
     );
 

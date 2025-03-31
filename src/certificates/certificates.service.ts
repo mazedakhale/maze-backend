@@ -1,19 +1,69 @@
-import { Injectable, BadRequestException,InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException, UseInterceptors, UploadedFile, Post, Body, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Certificate } from './entities/certificates.entity';
 import { S3Service } from './s3.service';
 import { Express } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Injectable()
 export class CertificatesService {
+  certificatesService: any;
   constructor(
     @InjectRepository(Certificate)
     private readonly certificateRepository: Repository<Certificate>,
     private readonly s3Service: S3Service
-  ) {}
- 
-  
+  ) { }
+
+  async uploadReceipt(receiptFile: Express.Multer.File, documentId: string) {
+    try {
+      console.log('📂 Received Receipt File:', receiptFile);
+      console.log('📄 Document ID:', documentId);
+
+      if (!receiptFile) {
+        throw new BadRequestException('Receipt file is required.');
+      }
+
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!allowedMimeTypes.includes(receiptFile.mimetype)) {
+        throw new BadRequestException('Only JPG, PNG, WEBP, and PDF files are allowed.');
+      }
+
+      // Convert `documentId` to a number
+      const documentIdNumber = parseInt(documentId, 10);
+      if (isNaN(documentIdNumber)) {
+        throw new BadRequestException('Invalid document_id. Must be a valid number.');
+      }
+
+      // ✅ Upload receipt file to S3 and get URL
+      const receiptUrl = await this.s3Service.uploadFile(receiptFile);
+
+      // ✅ Check if a receipt already exists for the given document_id
+      const existingReceipt = await this.certificateRepository.findOne({
+        where: { document_id: documentIdNumber },
+      });
+
+      if (existingReceipt) {
+        // If a receipt exists, update it
+        await this.certificateRepository.update(
+          { document_id: documentIdNumber },
+          { receipt_url: receiptUrl },
+        );
+      } else {
+        // If no receipt exists, create a new one
+        await this.certificateRepository.save({
+          document_id: documentIdNumber,
+          receipt_url: receiptUrl,
+        });
+      }
+
+      console.log('✅ Receipt URL updated/created successfully for document ID:', documentIdNumber);
+      return { message: 'Receipt uploaded successfully' };
+    } catch (error) {
+      console.error('❌ Error saving receipt:', error);
+      throw new InternalServerErrorException(`Failed to process receipt upload: ${error.message}`);
+    }
+  }
   async uploadCertificate(file: Express.Multer.File, body: any) {
     try {
       console.log('📂 Received File:', file);
@@ -42,38 +92,49 @@ export class CertificatesService {
       // ✅ Ensure distributor_id is stored as the correct type
       const distributorId = body.distributor_id ? String(body.distributor_id) : undefined;
 
-
       const applicationId = body.application_id ? String(body.application_id) : null;
-    const name = body.name ? String(body.name) : null;
+      const name = body.name ? String(body.name) : null;
 
-    if (!applicationId || !name) {
-      throw new BadRequestException('Application ID and Name are required.');
-    }
+      if (!applicationId || !name) {
+        throw new BadRequestException('Application ID and Name are required.');
+      }
 
-      // ✅ Create a new certificate object
-      const certificate = this.certificateRepository.create({
-        certificate_name: body.certificate_name || 'Certificate',
-        user_id: userId,
-        document_id: documentId,
-        distributor_id: distributorId,
-        file_url: fileUrl,
-
-        application_id: applicationId,
-      name: name,
+      // Check if a certificate with the same application_id already exists
+      const existingCertificate = await this.certificateRepository.findOne({
+        where: { application_id: applicationId },
       });
 
-      // ✅ Save the certificate in the database
-      const savedCertificate = await this.certificateRepository.save(certificate);
-      console.log('✅ Certificate saved successfully:', savedCertificate);
+      if (existingCertificate) {
+        // If the certificate already exists, skip insertion and return a message
+        return {
+          message: 'Certificate with this application ID already exists. Skipping insertion.',
+          certificate: existingCertificate,
+        };
+      } else {
+        // ✅ Create a new certificate object
+        const certificate = this.certificateRepository.create({
+          certificate_name: body.certificate_name || 'Certificate',
+          user_id: userId,
+          document_id: documentId,
+          distributor_id: distributorId,
+          file_url: fileUrl,
+          application_id: applicationId,
+          name: name,
+        });
 
-      return { message: 'Upload successful', certificate: savedCertificate };
+        // ✅ Save the certificate in the database
+        const savedCertificate = await this.certificateRepository.save(certificate);
+        console.log('✅ Certificate saved successfully:', savedCertificate);
+
+        return { message: 'Upload successful', certificate: savedCertificate };
+      }
     } catch (error) {
       console.error('❌ Error saving certificate:', error);
       throw new InternalServerErrorException('Failed to process certificate upload');
     }
   }
 
-  
+
 
   // ✅ Fetch a single document by certificate_id
   async getDocumentById(certificateId: string) {
@@ -102,56 +163,56 @@ export class CertificatesService {
 
   async getCertificatesByDocumentId(documentId: string) {
     const id = Number(documentId); // Convert to number
-  
+
     if (isNaN(id)) {
       throw new BadRequestException('Invalid document ID');
     }
-  
+
     const certificates = await this.certificateRepository.find({
       where: { document_id: id },
     });
-  
+
     if (!certificates.length) {
       throw new NotFoundException(`No certificates found for document ID ${documentId}`);
     }
-  
+
     return certificates;
   }
-  
+
 
 
   async updateCertificateFile(documentId: string, file: Express.Multer.File) {
     const id = Number(documentId);
-  
+
     if (isNaN(id)) {
       throw new BadRequestException('Invalid document ID.');
     }
-  
+
     // ✅ Find the certificate by document ID
     const certificate = await this.certificateRepository.findOne({ where: { document_id: id } });
-  
+
     if (!certificate) {
       throw new NotFoundException(`Certificate with Document ID ${documentId} not found.`);
     }
-  
+
     // ✅ Validate file type
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (!allowedMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException('Only JPG, PNG, WEBP, and PDF files are allowed.');
     }
-  
+
     // ✅ Upload new file to S3
     const newFileUrl = await this.s3Service.uploadFile(file);
-  
+
     // ✅ Update the certificate's file_url
     certificate.file_url = newFileUrl;
-  
+
     // ✅ Save the updated certificate
     const updatedCertificate = await this.certificateRepository.save(certificate);
-  
+
     console.log('✅ Certificate updated successfully:', updatedCertificate);
-  
+
     return { message: 'Certificate file updated successfully.', certificate: updatedCertificate };
   }
-  
+
 }

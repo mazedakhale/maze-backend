@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { StatisticsService } from './statistics.service';
 
 @Controller('statistics')
@@ -17,4 +17,12 @@ export class StatisticsController {
     async getDistributorCounts(@Param('distributorId') distributorId: number) {
         return await this.statisticsService.getDistributorStatistics(distributorId);
     }
+    @Get('pending-counts/:distributorId')
+    async getPendingCounts(@Param('distributorId', ParseIntPipe) distributorId: number) {
+        if (!distributorId || distributorId <= 0) {
+            throw new BadRequestException('Invalid distributor ID');
+        }
+        return await this.statisticsService.getPendingCounts(distributorId);
+    }
 }
+

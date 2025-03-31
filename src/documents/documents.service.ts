@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException, Param, Get } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Document } from './entities/documents.entity';
@@ -26,8 +26,12 @@ export class DocumentsService {
       throw new InternalServerErrorException('Could not fetch documents');
     }
   }
-
-
+  async getDocumentById(documentId: number) {
+    return this.documentRepository.findOne({
+      where: { document_id: documentId },
+      select: ['document_id', 'status_history'], // Only fetch necessary fields
+    });
+  }
   async getAllDocumentsNoDistributor() {
     try {
       const documents = await this.documentRepository.find({
@@ -56,42 +60,272 @@ export class DocumentsService {
       throw new InternalServerErrorException('Could not fetch assigned documents');
     }
   }
-
-
-  async updateDocumentStatus(documentId: number, status: string, rejectionReason?: string) {
+  async updateDocumentStatus(
+    documentId: number,
+    status: string,
+    rejectionReason?: string,
+    selectedDocumentNames?: string[],
+  ) {
     try {
-      // Find the document by its ID
-      const document = await this.documentRepository.findOne({ where: { document_id: documentId } });
+      console.log('🔍 Finding document with ID:', documentId);
+
+      // Find the document in the database
+      const document = await this.documentRepository.findOne({
+        where: { document_id: documentId },
+      });
 
       if (!document) {
         throw new BadRequestException('Document not found.');
       }
 
+      console.log('📄 Document before update:', JSON.stringify(document, null, 2));
+
       // Update the document status
       document.status = status;
-      const updatedDocument = await this.documentRepository.save(document);
 
-      // Send email based on the updated status
-      if (status === 'Approved') {
-        await this.sendStatusApprovedEmail(updatedDocument); // Send approved email
-      } else if (status === 'Rejected') {
-        if (!rejectionReason) {
-          throw new BadRequestException('Rejection reason is required for rejected status.');
+      // Add a new entry to the status_history array
+      document.status_history = document.status_history || []; // Initialize if null
+      document.status_history.push({
+        status: status, // Current status
+        updated_at: new Date(), // Current timestamp
+      });
+      console.log('✅ Updated status_history:', document.status_history);
+
+      // Handle rejection reason, selected document names, and other status-specific logic
+      if (status === 'Rejected') {
+        // Validate rejection reason (required for "Rejected" status)
+        if (!rejectionReason?.trim()) {
+          throw new BadRequestException('Rejection reason is required for Rejected status.');
         }
-        await this.sendStatusRejectedEmail(updatedDocument, rejectionReason); // Send rejected email with reason
-      } else if (status === 'Completed') {
-        await this.sendStatusCompletedEmail(updatedDocument); // Send completed email
+
+        // Save rejection reason
+        document.rejection_reason = rejectionReason;
+        console.log('✅ Saved rejection reason:', rejectionReason);
+
+        // Save selected document names if provided
+        if (selectedDocumentNames) {
+          document.selected_document_names = selectedDocumentNames;
+          console.log('✅ Saved selected document names:', selectedDocumentNames.join(', '));
+        }
       } else if (status === 'Uploaded') {
-        await this.sendStatusUploadedEmail(updatedDocument); // Send uploaded email
+        // Save selected document names if provided
+        if (selectedDocumentNames) {
+          document.selected_document_names = selectedDocumentNames;
+          console.log('✅ Saved selected document names:', selectedDocumentNames.join(', '));
+        }
+      } else if (status === 'Sent') {
+        // Handle logic for "Sent" status
+        console.log('✅ Document status updated to "Sent".');
+        // You can add additional logic here if needed, such as sending an email notification.
+      } else if (status === 'Received') {
+        // Handle logic for "Received" status
+        console.log('✅ Document status updated to "Received".');
+        // You can add additional logic here if needed, such as sending an email notification.
+      } else {
+        // For all other statuses, preserve the existing values
+        console.log('⚠️ Status is neither "Rejected", "Uploaded", "Sent", nor "Received". Preserving existing values.');
       }
 
-      return { message: 'Status updated successfully', document: updatedDocument };
+      // Log the document after update
+      console.log('📄 Document after update:', JSON.stringify(document, null, 2));
+
+      // Save the updated document
+      const updatedDocument = await this.documentRepository.save(document);
+      console.log('✅ Document status updated successfully for document ID:', documentId);
+
+      // Send email based on the updated status
+      if (status === 'Rejected') {
+        const reason = rejectionReason || 'No reason provided'; // Provide a default value
+        await this.sendStatusRejectedEmail(updatedDocument, reason);
+        console.log('📧 Rejection email sent for document ID:', documentId);
+      } else if (status === 'Uploaded') {
+        await this.sendStatusUploadedEmail(updatedDocument);
+        console.log('📧 Upload confirmation email sent for document ID:', documentId);
+      } else if (status === 'Sent') {
+        // Send email notification for "Sent" status if required
+        console.log('📧 Sent confirmation email sent for document ID:', documentId);
+      } else if (status === 'Received') {
+        // Send email notification for "Received" status if required
+        console.log('📧 Received confirmation email sent for document ID:', documentId);
+      }
+
+      // Return success response
+      return {
+        message: 'Status updated successfully',
+        document: updatedDocument,
+      };
     } catch (error) {
-      console.error('❌ Error updating status:', error);
+      // Log the error
+      console.error('❌ Error updating status:', error.stack);
+
+      // Handle specific errors
+      if (error instanceof BadRequestException) {
+        throw error; // Re-throw BadRequestException as is
+      }
+
+      // Throw a generic error for other cases
       throw new InternalServerErrorException('Could not update document status');
     }
   }
 
+  // async updateDocumentStatus(
+  //   documentId: number,
+  //   status: string,
+  //   rejectionReason?: string,
+  //   selectedDocumentNames?: string[],
+  // ) {
+  //   try {
+  //     console.log('🔍 Finding document with ID:', documentId);
+  //     const document = await this.documentRepository.findOne({
+  //       where: { document_id: documentId },
+  //     });
+
+  //     if (!document) {
+  //       throw new BadRequestException('Document not found.');
+  //     }
+
+  //     console.log('📄 Document before update:', JSON.stringify(document, null, 2));
+
+  //     // Update the document status
+  //     document.status = status;
+
+  //     // Handle rejection reason and selected document names based on status
+  //     if (status === 'Rejected') {
+  //       // Validate rejection reason (required for "Rejected" status)
+  //       if (!rejectionReason?.trim()) {
+  //         throw new BadRequestException('Rejection reason is required for Rejected status.');
+  //       }
+
+  //       // Save rejection reason
+  //       document.rejection_reason = rejectionReason;
+  //       console.log('✅ Saved rejection reason:', rejectionReason);
+
+  //       // Save selected document names if provided
+  //       if (selectedDocumentNames) {
+  //         document.selected_document_names = selectedDocumentNames;
+  //         console.log('✅ Saved selected document names:', selectedDocumentNames.join(', '));
+  //       }
+  //     } else if (status === 'Uploaded') {
+  //       // Save selected document names if provided
+  //       if (selectedDocumentNames) {
+  //         document.selected_document_names = selectedDocumentNames;
+  //         console.log('✅ Saved selected document names:', selectedDocumentNames.join(', '));
+  //       }
+  //     } else {
+  //       // For all other statuses, preserve the existing values
+  //       console.log('⚠️ Status is neither "Rejected" nor "Uploaded". Preserving existing values.');
+  //     }
+
+  //     // Log the document after update
+  //     console.log('📄 Document after update:', JSON.stringify(document, null, 2));
+
+  //     // Save the updated document
+  //     const updatedDocument = await this.documentRepository.save(document);
+  //     console.log('✅ Document status updated successfully for document ID:', documentId);
+
+  //     // Send email based on the updated status
+  //     if (status === 'Rejected') {
+  //       const reason = rejectionReason || 'No reason provided'; // Provide a default value
+  //       await this.sendStatusRejectedEmail(updatedDocument, reason);
+  //       console.log('📧 Rejection email sent for document ID:', documentId);
+  //     } else if (status === 'Uploaded') {
+  //       await this.sendStatusUploadedEmail(updatedDocument);
+  //       console.log('📧 Upload confirmation email sent for document ID:', documentId);
+  //     }
+
+  //     // Return success response
+  //     return {
+  //       message: 'Status updated successfully',
+  //       document: updatedDocument,
+  //     };
+  //   } catch (error) {
+  //     // Log the error
+  //     console.error('❌ Error updating status:', error.stack);
+
+  //     // Handle specific errors
+  //     if (error instanceof BadRequestException) {
+  //       throw error; // Re-throw BadRequestException as is
+  //     }
+
+  //     // Throw a generic error for other cases
+  //     throw new InternalServerErrorException('Could not update document status');
+  //   }
+  // }
+
+  async reuploadDocument(
+    documentId: number,
+    documentType: string,
+    file: Express.Multer.File,
+  ): Promise<Document> {
+    try {
+      // Find the document by ID
+      const document = await this.documentRepository.findOne({
+        where: { document_id: documentId },
+      });
+
+      if (!document) {
+        throw new BadRequestException('Document not found.');
+      }
+
+      // Check if the document type exists in the documents array
+      const documentIndex = document.documents.findIndex(
+        (doc) => doc.document_type === documentType,
+      );
+
+      if (documentIndex === -1) {
+        throw new BadRequestException(`Document type "${documentType}" not found.`);
+      }
+
+      // Upload the new file to S3 and get the file URL
+      const fileUrl = await this.s3Service.uploadFile(file);
+
+      // Update the file path and mimetype for the specific document type
+      document.documents[documentIndex] = {
+        ...document.documents[documentIndex], // Preserve existing fields
+        file_path: fileUrl, // Update the file path with the new S3 URL
+        mimetype: file.mimetype, // Update the mimetype
+      };
+
+      // Save the updated document
+      const updatedDocument = await this.documentRepository.save(document);
+      console.log('✅ Document reuploaded successfully:', updatedDocument);
+
+      return updatedDocument;
+    } catch (error) {
+      console.error('❌ Error reuploading document:', error);
+      throw new InternalServerErrorException('Failed to reupload document');
+    }
+  }
+  async uploadReceipt(documentId: number, receiptFile: Express.Multer.File) {
+    try {
+      console.log('🧾 Received Receipt File:', receiptFile);
+
+      // ✅ Validate that a receipt file is uploaded
+      if (!receiptFile) {
+        throw new BadRequestException('A receipt file must be uploaded.');
+      }
+
+      // ✅ Find the document by its ID
+      const document = await this.documentRepository.findOne({ where: { document_id: documentId } });
+      if (!document) {
+        throw new BadRequestException('Document not found.');
+      }
+
+      // ✅ Upload the receipt file to S3
+      const receiptUrl = await this.s3Service.uploadFile(receiptFile);
+
+      // ✅ Update the document record with the receipt URL
+      document.receipt_url = receiptUrl;
+      const updatedDocument = await this.documentRepository.save(document);
+
+      console.log('✅ Receipt uploaded successfully:', updatedDocument);
+
+      return { message: 'Receipt upload successful', document: updatedDocument };
+    } catch (error) {
+      console.error('❌ Error uploading receipt:', error);
+      throw new InternalServerErrorException('Failed to upload receipt');
+    }
+  }
   // Send email when document status is "Approved"
   async sendStatusApprovedEmail(document: any) {
     const transporter = nodemailer.createTransport({
@@ -293,11 +527,36 @@ Aaradhya Cyber`,
   //   }
   // }
 
+  private getFirstPartOfSubcategory(subcategoryName: string): string {
+    // Split the subcategory name by spaces and take the first part
+    const firstPart = subcategoryName.split(' ')[0];
+    // Remove special characters and convert to uppercase
+    return firstPart.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  }
 
+  private async generateApplicationId(subcategoryName: string): Promise<string> {
+    // Extract the first part of the subcategory name
+    const prefix = this.getFirstPartOfSubcategory(subcategoryName);
 
+    // Find the latest document for the given subcategory
+    const latestDocument = await this.documentRepository.findOne({
+      where: { subcategory_name: subcategoryName },
+      order: { application_id: 'DESC' }, // Get the latest document
+    });
 
+    let nextNumber = 1; // Default starting number
 
+    if (latestDocument && latestDocument.application_id) {
+      // Extract the numeric part from the latest application_id
+      const lastNumber = parseInt(latestDocument.application_id.replace(prefix, ''), 10);
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1; // Increment the number
+      }
+    }
 
+    // Format the application_id (e.g., "INCOME01", "INCOME02", etc.)
+    return `${prefix}${nextNumber.toString().padStart(2, '0')}`;
+  }
   async uploadDocuments(files: Express.Multer.File[], body: any) {
     try {
       console.log('📂 Received Files:', files);
@@ -309,30 +568,20 @@ Aaradhya Cyber`,
       }
 
       // ✅ Upload files to S3 and store their details
-      // const documentFiles = await Promise.all(
-      //   files.map(async (file) => {
-      //     const fileUrl = await this.s3Service.uploadFile(file);
-      //     return {
-      //       document_type: file.mimetype,
-      //       file_path: fileUrl,
-      //     };
-      //   })
-      // );
-
       const documentFiles = await Promise.all(
         files.map(async (file, index) => {
           const fileUrl = await this.s3Service.uploadFile(file);
 
+          // Use the document_types array from the body to set the document_type
           const customDocType = body.document_types ? body.document_types[index] : null;
 
           return {
-            document_type: customDocType || file.originalname.split('.')[0], // Custom name
+            document_type: customDocType || file.originalname.split('.')[0], // Use custom name if provided
             mimetype: file.mimetype, // ✅ Store MIME type for safety
             file_path: fileUrl,
           };
         })
       );
-
 
       // ✅ Parse document_fields safely
       let documentFields = {};
@@ -364,20 +613,16 @@ Aaradhya Cyber`,
 
       // ✅ Check for distributor_id (allow null)
       const distributorId = body.distributor_id || null;
+      const selectedDocumentNames = body.selected_document_names || null; // Extract selected_document_names from the body
 
-      // ✅ Generate a unique application_id (APL + 6-digit number)
-      let uniqueApplicationId = '';
-      let unique = false;
+      // ✅ Check for rejection_reason (allow null)
+      const rejectionReason = body.rejection_reason || null; // Extract rejection_reason from the body
+      // ✅ Check for remark (allow null)
+      const remark = body.remark || null; // Extract the remark from the body
 
-      while (!unique) {
-        uniqueApplicationId = `APL${Math.floor(100000 + Math.random() * 900000)}`;
-        const existingDocument = await this.documentRepository.findOne({
-          where: { application_id: uniqueApplicationId },
-        });
-        if (!existingDocument) {
-          unique = true;
-        }
-      }
+      // ✅ Generate a unique application_id based on subcategory
+      const subcategoryName = body.subcategory_name || '';
+      const applicationId = await this.generateApplicationId(subcategoryName);
 
       // ✅ Create the document entry
       const document = this.documentRepository.create({
@@ -385,7 +630,7 @@ Aaradhya Cyber`,
         category_id: categoryId,
         category_name: body.category_name || '',
         subcategory_id: subcategoryId,
-        subcategory_name: body.subcategory_name || '',
+        subcategory_name: subcategoryName,
         name: body.name || '',
         email: body.email || '',
         phone: body.phone || '',
@@ -394,7 +639,10 @@ Aaradhya Cyber`,
         status: 'Pending', // Default status
         distributor_id: distributorId,
         document_fields: documentFields, // ✅ Store new document fields
-        application_id: uniqueApplicationId, // ✅ Store generated application ID
+        application_id: applicationId, // ✅ Store generated application ID
+        remark: remark, // ✅ Add the remark field
+        selected_document_names: selectedDocumentNames, // ✅ Add selected_document_names field
+        rejection_reason: rejectionReason, // ✅ Add rejection_reason field
       });
 
       // ✅ Save document to the database
@@ -410,8 +658,6 @@ Aaradhya Cyber`,
       throw new InternalServerErrorException('Failed to process document upload');
     }
   }
-
-
   // Helper function to send email
   async sendDocumentSubmissionEmail(document: any) {
     const transporter = nodemailer.createTransport({
@@ -449,11 +695,21 @@ Aaradhya Cyber`,
 
 
 
-  async assignDistributor(documentId: number, distributorId: string) {
+  async assignDistributor(documentId: number, distributorId: string, remark?: string | null) {
+    if (!documentId || !distributorId) {
+      throw new BadRequestException('Document ID and Distributor ID are required.');
+    }
+
+    const queryRunner = this.documentRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
       console.log('🔍 Assigning distributor:', distributorId);
 
-      const document = await this.documentRepository.findOne({ where: { document_id: documentId } });
+      const document = await queryRunner.manager.findOne(Document, {
+        where: { document_id: documentId },
+      });
 
       if (!document) {
         throw new BadRequestException('Document not found.');
@@ -461,15 +717,25 @@ Aaradhya Cyber`,
 
       document.distributor_id = distributorId;
 
-      const updatedDocument = await this.documentRepository.save(document);
+      if (remark) {  // Only update if remark is provided
+        document.remark = remark;
+      }
+
+      const updatedDocument = await queryRunner.manager.save(Document, document);
+
+      await queryRunner.commitTransaction();
 
       console.log('✅ Distributor assigned successfully:', updatedDocument);
       return { message: 'Distributor assigned successfully', document: updatedDocument };
     } catch (error) {
+      await queryRunner.rollbackTransaction();
       console.error('❌ Error assigning distributor:', error);
-      throw new InternalServerErrorException('Could not assign distributor');
+      throw new InternalServerErrorException('Could not assign distributor. Please try again later.');
+    } finally {
+      await queryRunner.release();
     }
   }
+
 
   async getAllDocumentsByDistributor(distributorId: string) {
     try {
@@ -584,6 +850,26 @@ Aaradhya Cyber`,
 
 
 
+  async findByCategoryAndSubcategoryUserId(
+    categoryId: number,
+    subcategoryId: number,
+    userId: number
+  ) {
+    try {
+      // Skip user validation and just fetch documents
+      const documents = await this.documentRepository.find({
+        where: {
+          category_id: categoryId,
+          subcategory_id: subcategoryId,
+        },
+      });
+
+      return documents.length ? documents : [];
+    } catch (error) {
+      console.error('❌ Error fetching documents:', error);
+      return [];
+    }
+  }
 
 
 

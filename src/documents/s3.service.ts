@@ -32,10 +32,10 @@ export class S3Service {
       Key: `uploads/${Date.now()}-${file.originalname}`,
       Body: file.buffer,
       ContentType: file.mimetype,
-        ContentDisposition: `inline; filename="${file.originalname}"` 
+      ContentDisposition: `inline; filename="${file.originalname}"`
     };
 
-    
+
     try {
       console.log(`📤 Uploading to S3: Bucket=${this.bucketName}, Key=${params.Key}`);
 

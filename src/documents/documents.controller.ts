@@ -8,10 +8,12 @@ import {
   UseInterceptors,
   UploadedFiles,
   ParseIntPipe,
+  UploadedFile,
+  NotFoundException,
 } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Document } from './entities/documents.entity';
 
 @Controller('documents')
@@ -43,7 +45,21 @@ export class DocumentsController {
     }
   }
 
+  @Get('history/:document_id')
+  async getStatusHistory(@Param('document_id') documentId: number) {
+    // Fetch the document with status history
+    const document = await this.documentsService.getDocumentById(documentId);
 
+    if (!document) {
+      throw new NotFoundException('Document not found.');
+    }
+
+    // Return the status history
+    return {
+      message: 'Status history fetched successfully',
+      status_history: document.status_history,
+    };
+  }
 
   // Endpoint to get the most recent 10 applications
   @Get('recent')
@@ -109,22 +125,80 @@ export class DocumentsController {
   async updateDocumentStatus(
     @Param('id') documentId: number,
     @Body('status') status: string,
-    @Body('rejectionReason') rejectionReason?: string, // Accept rejection reason
+    @Body('rejectionReason') rejectionReason?: string,
+    @Body('selectedDocumentNames') selectedDocumentNames?: string[],
   ) {
     try {
+      // Log the start of the process
+      console.log('🔍 Starting status update for document ID:', documentId);
+
+      // Validate required fields
       if (!status) {
         throw new BadRequestException('Status is required.');
       }
 
-      return this.documentsService.updateDocumentStatus(documentId, status, rejectionReason);
+      // Log the incoming request data for debugging
+      console.log('📝 Update Status Request:', {
+        documentId,
+        status,
+        rejectionReason,
+        selectedDocumentNames,
+      });
+
+      // Call the service method to update the document status
+      const result = await this.documentsService.updateDocumentStatus(
+        documentId,
+        status,
+        rejectionReason,
+        selectedDocumentNames,
+      );
+
+      // Log the successful update
+      console.log('✅ Document status updated successfully:', result);
+
+      return result;
     } catch (error) {
-      console.error('❌ Error updating status:', error);
+      // Log the error
+      console.error('❌ Error updating status:', error.stack);
+
+      // Handle specific errors
+      if (error instanceof BadRequestException) {
+        throw error; // Re-throw BadRequestException as is
+      }
+
+      // Throw a generic error for other cases
       throw new InternalServerErrorException('Failed to update document status');
     }
+  }
+  @Post('reupload/:documentId')
+  @UseInterceptors(FileInterceptor('file')) // 'file' is the field name
+  async reuploadDocument(
+    @Param('documentId') documentId: number,
+    @Body('documentType') documentType: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.documentsService.reuploadDocument(documentId, documentType, file);
   }
 
 
 
+  @Post('upload-receipt/:id')
+  @UseInterceptors(FileInterceptor('receipt')) // Use multer to handle file uploads
+  async uploadReceipt(
+    @Param('id') documentId: number,
+    @UploadedFile() receiptFile: Express.Multer.File,
+  ) {
+    try {
+      if (!receiptFile) {
+        throw new BadRequestException('A receipt file must be uploaded.');
+      }
+
+      return this.documentsService.uploadReceipt(documentId, receiptFile);
+    } catch (error) {
+      console.error('❌ Error uploading receipt:', error);
+      throw new InternalServerErrorException('Failed to upload receipt');
+    }
+  }
   // 📌 PUT API to update document fields dynamically
   @Put('update-fields/:id')
   async updateDocumentFields(
@@ -145,8 +219,6 @@ export class DocumentsController {
       throw new InternalServerErrorException('Failed to update document fields');
     }
   }
-
-
   // 📌 PUT API to assign Distributor to a Document
   @Put('assign-distributor/:id')
   async assignDistributor(
@@ -156,12 +228,14 @@ export class DocumentsController {
     console.log("📩 Received request body:", body); // Debugging Log
 
     const distributorId = body.distributor_id;
+    const remark = body.remark?.trim() || null; // Set remark to `null` if empty
 
     if (!distributorId) {
       throw new BadRequestException('Distributor user ID is required.');
     }
 
-    return this.documentsService.assignDistributor(documentId, distributorId);
+    // Remove remark validation (make it optional)
+    return this.documentsService.assignDistributor(documentId, distributorId, remark);
   }
 
 
@@ -212,7 +286,18 @@ export class DocumentsController {
   ) {
     return this.documentsService.findByCategorySubcategoryAndUser(categoryId, subcategoryId, userId);
   }
-
+  @Get('category-docs/:categoryId/:subcategoryId/:userId')
+  async findByCategoryAndSubcategoryUserId(
+    @Param('categoryId') categoryId: number,
+    @Param('subcategoryId') subcategoryId: number,
+    @Param('userId') userId: number,
+  ) {
+    return this.documentsService.findByCategoryAndSubcategoryUserId(
+      categoryId,
+      subcategoryId,
+      userId
+    );
+  }
 
 
 

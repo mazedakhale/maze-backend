@@ -11,7 +11,6 @@ import {
     UploadedFile,
     InternalServerErrorException,
     NotFoundException,
-    Put,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RequiredDocumentsService } from './required-documents.service';
@@ -41,21 +40,6 @@ export class RequiredDocumentsController {
             throw new InternalServerErrorException('Failed to create document.');
         }
     }
-
-    // Endpoint to fetch documents by category and subcategory
-    @Get('category-docs/:categoryId/:subcategoryId/:userId')
-    async findByCategoryAndSubcategoryUserId(
-        @Param('categoryId') categoryId: number,
-        @Param('subcategoryId') subcategoryId: number,
-        @Param('userId') userId: number,
-    ) {
-        return this.requiredDocumentsService.findByCategoryAndSubcategoryUserId(
-            categoryId,
-            subcategoryId,
-            userId
-        );
-    }
-
 
     @Get()
     async findAll() {

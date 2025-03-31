@@ -66,29 +66,6 @@ export class RequiredDocumentsService {
         }
     }
 
-
-    async findByCategoryAndSubcategoryUserId(
-        categoryId: number,
-        subcategoryId: number,
-        userId: number
-    ) {
-        try {
-            // Skip user validation and just fetch documents
-            const documents = await this.requiredDocumentRepository.find({
-                where: {
-                    category_id: categoryId,
-                    subcategory_id: subcategoryId,
-                },
-            });
-
-            return documents.length ? documents : [];
-        } catch (error) {
-            console.error('❌ Error fetching documents:', error);
-            return [];
-        }
-    }
-
-
     async findAll(): Promise<RequiredDocument[]> {
         return this.requiredDocumentRepository.find({ relations: ['category', 'subcategory'] });
     }

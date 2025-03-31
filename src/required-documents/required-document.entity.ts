@@ -20,9 +20,4 @@ export class RequiredDocument {
     @Column({ type: 'varchar', nullable: true }) // Add this field for file URL
     file_url: string;
 
-    @Column({ type: 'int', nullable: false })
-    subcategory_id: number;
-    @Column({ type: 'int', nullable: false })
-    category_id: number;
-
 }

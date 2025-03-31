@@ -17,4 +17,13 @@ export class RequiredDocument {
 
     @CreateDateColumn({ type: 'timestamp' })
     created_at: Date;
+    @Column({ type: 'varchar', nullable: true }) // Add this field for file URL
+    file_url: string;
+    @Column({ type: 'int', nullable: false })
+    user_id: number;
+    @Column({ type: 'int', nullable: false })
+    subcategory_id: number;
+    @Column({ type: 'int', nullable: false })
+    category_id: number;
+
 }

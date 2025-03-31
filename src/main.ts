@@ -31,7 +31,7 @@ async function bootstrap(): Promise<void> {
   SwaggerModule.setup('api', app, document);
 
   await app.listen(3000, '0.0.0.0');
-  console.log(`Application is running on: http://localhost:3000/api`);
+  console.log(`Application is running on: http://3.6.61.72:3000/api`);
 }
 
 bootstrap();

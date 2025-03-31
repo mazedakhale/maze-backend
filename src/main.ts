@@ -8,12 +8,12 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
   // Load environment variables
-  ConfigModule.forRoot(); 
+  ConfigModule.forRoot();
 
 
 
-    // Enable CORS (Optional, but useful for frontend)
-    app.enableCors();
+  // Enable CORS (Optional, but useful for frontend)
+  app.enableCors();
 
   // Apply body-parser middleware
   app.use(bodyParser.urlencoded({ extended: true }));
@@ -30,7 +30,7 @@ async function bootstrap(): Promise<void> {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
+  await app.listen(3000, '0.0.0.0');
   console.log(`Application is running on: http://localhost:3000/api`);
 }
 

@@ -27,7 +27,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { FieldModule } from './feild/feild.module';
 import { ContactModule } from './contact/contact.module';
 import { PrivacyPolicyModule } from './privacy-policy/privacy-policy.module';
-
+import { EmployeeModule } from './employee/employee.module';
 
 config();
 
@@ -66,6 +66,8 @@ config();
     FeedbackModule,
     FieldModule,
     ContactModule,
+    EmployeeModule,
+
     PrivacyPolicyModule],
   controllers: [AppController],
   providers: [AppService],

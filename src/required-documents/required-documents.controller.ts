@@ -41,60 +41,6 @@ export class RequiredDocumentsController {
             throw new InternalServerErrorException('Failed to create document.');
         }
     }
-    @Post('employee')
-    async createlist(
-        @Body('category_id', ParseIntPipe) categoryId: number,
-        @Body('subcategory_id', ParseIntPipe) subcategoryId: number,
-        @Body('user_id', ParseIntPipe) userId: number,
-    ) {
-        try {
-            const result = await this.requiredDocumentsService.createlist(
-                categoryId,
-                subcategoryId,
-                userId,
-            );
-            return result;
-        } catch (error) {
-            console.error('Error in create controller:', error);
-            throw new InternalServerErrorException('Failed to create document.');
-        }
-    }
-    // Edit API
-    @Put('employee/:id')
-    async updateList(
-        @Param('id', ParseIntPipe) id: number,
-        @Body('category_id', ParseIntPipe) categoryId: number,
-        @Body('subcategory_id', ParseIntPipe) subcategoryId: number,
-        @Body('user_id', ParseIntPipe) userId: number,
-    ) {
-        try {
-            const result = await this.requiredDocumentsService.updateList(
-                id,
-                categoryId,
-                subcategoryId,
-                userId,
-            );
-            return result;
-        } catch (error) {
-            console.error('Error in update controller:', error);
-            throw new InternalServerErrorException('Failed to update document.');
-        }
-    }
-
-    // Delete API
-    @Delete('employee/:id')
-    async deleteList(
-        @Param('id', ParseIntPipe) id: number,
-    ) {
-        try {
-            const result = await this.requiredDocumentsService.deleteList(id);
-            return result;
-        } catch (error) {
-            console.error('Error in delete controller:', error);
-            throw new InternalServerErrorException('Failed to delete document.');
-        }
-    }
-
 
     // Endpoint to fetch documents by category and subcategory
     @Get('category-docs/:categoryId/:subcategoryId/:userId')

@@ -66,76 +66,7 @@ export class RequiredDocumentsService {
         }
     }
 
-    async createlist(
-        categoryId: number,
-        subcategoryId: number,
-        userId: number,
-    ): Promise<RequiredDocument> {
-        try {
-            // No need to validate category and subcategory if you're just storing IDs
 
-            // Create the document with direct ID fields
-            const document = this.requiredDocumentRepository.create({
-                category_id: categoryId,
-                subcategory_id: subcategoryId,
-                user_id: userId,
-            });
-
-            await this.requiredDocumentRepository.save(document);
-
-            return document;
-        } catch (error) {
-            console.error('Error in create service:', error);
-            throw new InternalServerErrorException('Failed to create document.');
-        }
-    }
-    // Update method
-    async updateList(
-        id: number,
-        categoryId: number,
-        subcategoryId: number,
-        userId: number,
-    ): Promise<RequiredDocument> {
-        try {
-            // Find the document
-            const document = await this.requiredDocumentRepository.findOne({ where: { id } });
-            if (!document) {
-                throw new NotFoundException(`Document with ID ${id} not found`);
-            }
-
-            // Update the document
-            document.category_id = categoryId;
-            document.subcategory_id = subcategoryId;
-            document.user_id = userId;
-
-            // Save the updated document
-            await this.requiredDocumentRepository.save(document);
-
-            return document;
-        } catch (error) {
-            console.error('Error in update service:', error);
-            throw new InternalServerErrorException('Failed to update document.');
-        }
-    }
-
-    // Delete method
-    async deleteList(id: number): Promise<{ message: string }> {
-        try {
-            // Find the document
-            const document = await this.requiredDocumentRepository.findOne({ where: { id } });
-            if (!document) {
-                throw new NotFoundException(`Document with ID ${id} not found`);
-            }
-
-            // Delete the document
-            await this.requiredDocumentRepository.remove(document);
-
-            return { message: `Document with ID ${id} successfully deleted` };
-        } catch (error) {
-            console.error('Error in delete service:', error);
-            throw new InternalServerErrorException('Failed to delete document.');
-        }
-    }
     async findByCategoryAndSubcategoryUserId(
         categoryId: number,
         subcategoryId: number,

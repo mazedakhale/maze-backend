@@ -45,12 +45,11 @@ export class User {
   user_login_status: LoginStatus;
 
   @CreateDateColumn()
-  created_at: Date;
-  @Column()
-  district: string; // Add district
+  @Column({ nullable: true }) // Ensure it is optional
+  district?: string;
 
-  @Column()
-  taluka: string; // Add taluka
+  @Column({ nullable: true }) // Ensure it is optional
+  taluka?: string;
 
 
   @Column('json', { nullable: true })

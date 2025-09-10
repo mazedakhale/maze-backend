@@ -12,7 +12,7 @@ export class RequestErrorsService {
     @InjectRepository(RequestError)
     private readonly requestErrorRepository: Repository<RequestError>,
     private readonly s3Service: S3Service
-  ) {}
+  ) { }
 
   // ✅ Create an error request with file upload
   // async createRequest(file: Express.Multer.File, body: any) {
@@ -43,35 +43,61 @@ export class RequestErrorsService {
 
 
   async createRequest(file: Express.Multer.File, body: any) {
+    if (!file) {
+      throw new BadRequestException('Error document is required.');
+    }
+
+    const fileUrl = await this.s3Service.uploadFile(file);
+
+    const reqEntity = this.requestErrorRepository.create({
+      request_description: body.request_description,
+      error_document: fileUrl,
+      document_id: Number(body.document_id),
+      category_id: Number(body.category_id),
+      subcategory_id: Number(body.subcategory_id),
+      user_id: Number(body.user_id),
+      distributor_id: body.distributor_id,
+      application_id: body.application_id,
+      request_status: 'Pending',
+      request_name: body.request_name,
+      request_email: body.request_email,
+      error_type: body.error_type,    // ← new!
+    });
+
     try {
-      if (!file) throw new BadRequestException('Error document is required.');
+      const saved = await this.requestErrorRepository.save(reqEntity);
+      await this.sendRequestCreatedEmail(saved);
+      return saved;
+    } catch (err: any) {
+      if (err.code === 'ER_DUP_ENTRY' && err.message.includes('application_id')) {
+        const existing = await this.requestErrorRepository.findOne({
+          where: { application_id: body.application_id }
+        });
+        if (!existing) {
+          throw new InternalServerErrorException('Failed to locate existing error request.');
+        }
 
-      const fileUrl = await this.s3Service.uploadFile(file);
+        // overwrite the old record
+        existing.request_description = body.request_description;
+        existing.error_document = fileUrl;
+        existing.document_id = Number(body.document_id);
+        existing.category_id = Number(body.category_id);
+        existing.subcategory_id = Number(body.subcategory_id);
+        existing.user_id = Number(body.user_id);
+        existing.distributor_id = body.distributor_id;
+        existing.request_name = body.request_name;
+        existing.request_email = body.request_email;
+        existing.request_status = 'Pending';
+        existing.error_type = body.error_type;
 
-      const request = this.requestErrorRepository.create({
-        request_description: body.request_description,
-        error_document: fileUrl,
-        document_id: Number(body.document_id),
-        category_id: Number(body.category_id),
-        subcategory_id: Number(body.subcategory_id),
-        user_id: Number(body.user_id),
-        distributor_id: body.distributor_id,
-        application_id: body.application_id,
-        request_status: 'Pending',
-        request_name: body.request_name, // ✅ Added name
-        request_email: body.request_email, // ✅ Added email
-      });
+        const updated = await this.requestErrorRepository.save(existing);
+        return updated;
+      }
 
-      const savedRequest = await this.requestErrorRepository.save(request);
-
-      // ✅ Send email notification when an error request is created
-      await this.sendRequestCreatedEmail(savedRequest);
-
-      return savedRequest;
-    } catch (error) {
-      throw new InternalServerErrorException('Failed to create error request.');
+      throw new InternalServerErrorException('Failed to create or update error request.');
     }
   }
+
 
   // ✅ Get all error requests
   async getAllRequests() {
@@ -103,7 +129,7 @@ export class RequestErrorsService {
 
 
 
-  
+
 
   // ✅ Delete a request
   async deleteRequest(requestId: number) {
@@ -141,47 +167,47 @@ Aaradhya Cyber`,
 
   async updateRequestStatus(requestId: number, request_status: string, rejectionReason?: string) {
     try {
-        console.log(`🔹 Updating request ${requestId} with status: ${request_status}, Reason: ${rejectionReason}`);
+      console.log(`🔹 Updating request ${requestId} with status: ${request_status}, Reason: ${rejectionReason}`);
 
-        const request = await this.requestErrorRepository.findOne({ where: { request_id: requestId } });
+      const request = await this.requestErrorRepository.findOne({ where: { request_id: requestId } });
 
-        if (!request) {
-            console.error(`❌ Request with ID ${requestId} not found`);
-            throw new NotFoundException(`Request with ID ${requestId} not found`);
-        }
+      if (!request) {
+        console.error(`❌ Request with ID ${requestId} not found`);
+        throw new NotFoundException(`Request with ID ${requestId} not found`);
+      }
 
-        // ✅ Ensure rejectionReason is provided when status is "Rejected" or "Distributor Rejected"
-        if ((request_status === 'Rejected' || request_status === 'Distributor Rejected') && !rejectionReason) {
-            console.error(`❌ Rejection reason is required for status ${request_status}`);
-            throw new BadRequestException('Rejection reason is required for rejected status.');
-        }
+      // ✅ Ensure rejectionReason is provided when status is "Rejected" or "Distributor Rejected"
+      if ((request_status === 'Rejected' || request_status === 'Distributor Rejected') && !rejectionReason) {
+        console.error(`❌ Rejection reason is required for status ${request_status}`);
+        throw new BadRequestException('Rejection reason is required for rejected status.');
+      }
 
-        // ✅ Update request status and set rejectionReason
-        request.request_status = request_status;
+      // ✅ Update request status and set rejectionReason
+      request.request_status = request_status;
 
-        // 🔹 Explicitly add rejectionReason field (if applicable)
-        if (rejectionReason) {
-            (request as any).rejection_reason = rejectionReason; // Ensure this field exists in your database
-        }
+      // 🔹 Explicitly add rejectionReason field (if applicable)
+      if (rejectionReason) {
+        (request as any).rejection_reason = rejectionReason; // Ensure this field exists in your database
+      }
 
-        // ✅ Save updated request
-        const updatedRequest = await this.requestErrorRepository.save(request);
+      // ✅ Save updated request
+      const updatedRequest = await this.requestErrorRepository.save(request);
 
-        console.log("✅ Request updated successfully:", updatedRequest);
+      console.log("✅ Request updated successfully:", updatedRequest);
 
-        // ✅ Send email notification (pass `rejectionReason` correctly)
-        await this.sendStatusUpdateEmail(updatedRequest, rejectionReason);
+      // ✅ Send email notification (pass `rejectionReason` correctly)
+      await this.sendStatusUpdateEmail(updatedRequest, rejectionReason);
 
-        return { message: 'Request status updated successfully', request: updatedRequest };
+      return { message: 'Request status updated successfully', request: updatedRequest };
     } catch (error) {
-        console.error("❌ Error in updateRequestStatus:", error);
-        throw new InternalServerErrorException('Failed to update request status');
+      console.error("❌ Error in updateRequestStatus:", error);
+      throw new InternalServerErrorException('Failed to update request status');
     }
-}
+  }
 
 
   // ✅ Send email when request is created
- 
+
   // ✅ Send email when request status is updated
   async sendStatusUpdateEmail(request: RequestError, rejectionReason?: string) {
     const transporter = this.createTransporter();
@@ -243,12 +269,12 @@ Best regards,
 Aaradhya Cyber`;
         break;
 
-        case 'Distributor Rejected':
-          if (!rejectionReason) {
-              throw new InternalServerErrorException('Rejection reason is required for distributor rejected status.');
-          }
-          subject = 'Error Request Rejected by Distributor';
-          text = `Dear ${request.request_name},
+      case 'Distributor Rejected':
+        if (!rejectionReason) {
+          throw new InternalServerErrorException('Rejection reason is required for distributor rejected status.');
+        }
+        subject = 'Error Request Rejected by Distributor';
+        text = `Dear ${request.request_name},
       
       We regret to inform you that your error request for "${request.request_description}" has been rejected by the Distributor.
       
@@ -258,8 +284,8 @@ Aaradhya Cyber`;
       
       Best regards,  
       Aaradhya Cyber`;
-          break;
-      
+        break;
+
       default:
         return;
     }
@@ -280,7 +306,7 @@ Aaradhya Cyber`;
       service: 'gmail',
       auth: {
         user: 'rutujadeshmukh175@gmail.com', // Your email address
-        pass: 'hzaj osby vnsh ctyq', // Your email password or app password
+        pass: 'wrbc dwbq ittr lyqa', // Your email password or app password
       },
     });
   }

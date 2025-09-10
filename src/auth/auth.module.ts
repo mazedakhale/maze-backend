@@ -1,30 +1,49 @@
-// src/auth/auth.module.ts
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { AuthUser } from './entities/user.entity';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
+/**
+ * Authentication Module
+ * Provides JWT-based authentication functionality
+ * Includes user management, login, signup, and protected routes
+ */
 @Module({
   imports: [
-    // Make sure ConfigModule is imported even if it's global; it's needed for the registerAsync process.
-    ConfigModule,
+    // Import TypeORM module for database operations
+    TypeOrmModule.forFeature([AuthUser]),
+    
+    // Import Passport module for authentication strategies
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    
+    // Import JWT module with configuration
     JwtModule.registerAsync({
       imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        // JWT secret from environment variables
+        secret: configService.get<string>('JWT_SECRET'),
+        // Token expiration time from environment variables
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN', '1h'),
+        },
+      }),
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET');
-        // Debug: Log the secret to ensure it's loaded (remove or comment out in production)
-        console.log('JWT_SECRET:', secret);
-        return {
-          secret: secret,
-          signOptions: {
-            expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h',
-          },
-        };
-      },
     }),
   ],
-  providers: [AuthService],
-  exports: [AuthService, JwtModule],
+  controllers: [AuthController],
+  providers: [
+    AuthService,
+    JwtStrategy, // JWT strategy for token validation
+  ],
+  exports: [
+    AuthService, // Export AuthService for use in other modules
+    PassportModule, // Export PassportModule for use in other modules
+    JwtModule, // Export JwtModule for use in other modules
+  ],
 })
 export class AuthModule {}

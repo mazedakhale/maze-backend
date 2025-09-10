@@ -180,7 +180,37 @@ export class CertificatesService {
   }
 
 
+  async getCertificateByApplicationId(
+    applicationId: string,
+  ): Promise<{ certificate_url: string; application_id: string }> {
+    // 1) find the document row
+    const doc = await this.certificateRepository.findOne({
+      where: { application_id: applicationId },
+      select: ['document_id', 'application_id'],
+    });
+    if (!doc) {
+      throw new NotFoundException(
+        `Document with application_id=${applicationId} not found`,
+      );
+    }
 
+    // 2) find the certificate row
+    const cert = await this.certificateRepository.findOne({
+      where: { document_id: doc.document_id },
+      select: ['file_url'],
+    });
+    if (!cert?.file_url) {
+      throw new NotFoundException(
+        `Certificate for application_id=${applicationId} not found`,
+      );
+    }
+
+    // 3) return in the same shape as your receipt endpoint
+    return {
+      certificate_url: cert.file_url,
+      application_id: doc.application_id,
+    };
+  }
   async updateCertificateFile(documentId: string, file: Express.Multer.File) {
     const id = Number(documentId);
 

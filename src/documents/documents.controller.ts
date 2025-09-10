@@ -23,7 +23,7 @@ export class DocumentsController {
   @Post('upload')
   @UseInterceptors(
     FilesInterceptor('files', 10, {
-      limits: { fileSize: 500 * 1024 }, // 200KB max file size
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
     }),
   )
   async uploadDocuments(
@@ -79,6 +79,24 @@ export class DocumentsController {
     }
   }
 
+
+  // ✅ dynamic parameter — now GET /documents/receipt/A06 will work
+  @Get('receipt/:applicationId')
+  async getReceiptByApplicationId(
+    @Param('applicationId') applicationId: string,
+  ) {
+    try {
+      return await this.documentsService.getReceiptByApplicationId(
+        applicationId,
+      );
+    } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      console.error('❌ Error in controller:', err);
+      throw new InternalServerErrorException(
+        'Failed to fetch receipt by application_id',
+      );
+    }
+  }
 
   @Get('list_nodistributor')
   async getAllDocumentsNoDistributor() {
@@ -199,6 +217,26 @@ export class DocumentsController {
       throw new InternalServerErrorException('Failed to upload receipt');
     }
   }
+  @Put('update-receipt/:id')
+  @UseInterceptors(FileInterceptor('receipt'))
+  async updateReceipt(
+    @Param('id') documentId: number,
+    @UploadedFile() receiptFile: Express.Multer.File,
+  ) {
+    if (!receiptFile) {
+      throw new BadRequestException('A receipt file must be uploaded.');
+    }
+    try {
+      return await this.documentsService.updateReceipt(
+        documentId,
+        receiptFile,
+      );
+    } catch (error) {
+      console.error('❌ Error in controller updating receipt:', error);
+      throw new InternalServerErrorException('Failed to update receipt');
+    }
+  }
+
   // 📌 PUT API to update document fields dynamically
   @Put('update-fields/:id')
   async updateDocumentFields(

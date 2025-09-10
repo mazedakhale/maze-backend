@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Document } from './entities/documents.entity';
 import { Express } from 'express';
-import { S3Service } from './s3.service';
+import { LocalStorageService } from './local-storage.service';
 import * as nodemailer from 'nodemailer';
 import { IsNull, Not } from "typeorm";
 
@@ -14,7 +14,7 @@ export class DocumentsService {
     @InjectRepository(Document)
     private readonly documentRepository: Repository<Document>,
 
-    private readonly s3Service: S3Service
+    private readonly localStorageService: LocalStorageService
   ) { }
 
   async getAllDocuments() {
@@ -32,6 +32,44 @@ export class DocumentsService {
       select: ['document_id', 'status_history'], // Only fetch necessary fields
     });
   }
+  async getReceiptByApplicationId(
+    applicationId: string,
+  ): Promise<{ receipt_url: string; application_id: string }> {
+    // TS infers `doc` as `Document | null`
+    const doc = await this.documentRepository.findOne({
+      where: { application_id: applicationId },
+      select: ['receipt_url', 'documents', 'application_id'],
+    });
+
+    if (!doc) {
+      throw new NotFoundException(
+        `Document with application_id=${applicationId} not found`,
+      );
+    }
+
+    // Now `doc` is guaranteed non-null, so you can safely access its fields:
+    if (doc.receipt_url) {
+      return { receipt_url: doc.receipt_url, application_id: doc.application_id };
+    }
+
+    if (Array.isArray(doc.documents)) {
+      const entry = doc.documents.find(
+        (d) => d.is_receipt_url === true || d.document_type === 'receipt',
+      );
+      if (entry?.file_path) {
+        return {
+          receipt_url: entry.file_path,
+          application_id: doc.application_id,
+        };
+      }
+    }
+
+    throw new NotFoundException(
+      `No receipt found for application_id=${applicationId}`,
+    );
+  }
+
+
   async getAllDocumentsNoDistributor() {
     try {
       const documents = await this.documentRepository.find({
@@ -252,50 +290,89 @@ export class DocumentsService {
   //   }
   // }
 
+  // In your DocumentsService:
+
   async reuploadDocument(
     documentId: number,
     documentType: string,
     file: Express.Multer.File,
   ): Promise<Document> {
+    // 1. Fetch
+    const document = await this.documentRepository.findOne({
+      where: { document_id: documentId },
+    });
+    if (!document) {
+      throw new BadRequestException('Document not found.');
+    }
+
+    // 2. Find the slot in the JSON array
+    const idx = document.documents.findIndex(
+      (doc) => doc.document_type === documentType,
+    );
+    if (idx === -1) {
+      throw new BadRequestException(`Document type "${documentType}" not found.`);
+    }
+
+    // 3. Upload new file
+    const fileUrl = await this.localStorageService.uploadFile(file);
+
+    // 4. Update the slot’s file info
+    document.documents[idx] = {
+      ...document.documents[idx],
+      file_path: fileUrl,
+      mimetype: file.mimetype,
+    };
+
+    // 5. Reset status to Pending & update history
+    document.status = 'Pending';
+    document.status_updated_at = new Date();
+    document.status_history = document.status_history || [];
+    document.status_history.push({
+      status: 'Pending',
+      updated_at: document.status_updated_at,
+    });
+
+    // 6. Save
+    const updated = await this.documentRepository.save(document);
+
+    // 7. Send notification email for only the re-uploaded type
+    await this.sendStatusPendingEmail(updated, documentType);
+
+    return updated;
+  }
+
+  private async sendStatusPendingEmail(document: Document, documentType: string) {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'rutujadeshmukh175@gmail.com',
+        pass: 'wrbc dwbq ittr lyqa',
+      },
+    });
+
+    const mailOptions = {
+      from: 'rutujadeshmukh175@gmail.com',
+      to: document.email,
+      subject: 'Application Status Updated to Pending',
+      text: `Dear ${document.name},
+
+Your document "${documentType}" has been re-uploaded successfully.
+The status of your application (ID: ${document.application_id}) is now PENDING.
+
+We will review it shortly and notify you once the review is complete.
+
+Best regards,
+Aaradhya Cyber`,
+    };
+
     try {
-      // Find the document by ID
-      const document = await this.documentRepository.findOne({
-        where: { document_id: documentId },
-      });
-
-      if (!document) {
-        throw new BadRequestException('Document not found.');
-      }
-
-      // Check if the document type exists in the documents array
-      const documentIndex = document.documents.findIndex(
-        (doc) => doc.document_type === documentType,
-      );
-
-      if (documentIndex === -1) {
-        throw new BadRequestException(`Document type "${documentType}" not found.`);
-      }
-
-      // Upload the new file to S3 and get the file URL
-      const fileUrl = await this.s3Service.uploadFile(file);
-
-      // Update the file path and mimetype for the specific document type
-      document.documents[documentIndex] = {
-        ...document.documents[documentIndex], // Preserve existing fields
-        file_path: fileUrl, // Update the file path with the new S3 URL
-        mimetype: file.mimetype, // Update the mimetype
-      };
-
-      // Save the updated document
-      const updatedDocument = await this.documentRepository.save(document);
-      console.log('✅ Document reuploaded successfully:', updatedDocument);
-
-      return updatedDocument;
-    } catch (error) {
-      console.error('❌ Error reuploading document:', error);
-      throw new InternalServerErrorException('Failed to reupload document');
+      await transporter.sendMail(mailOptions);
+      console.log('✅ Pending-status email sent for', documentType);
+    } catch (err) {
+      console.error('❌ Error sending pending-status email:', err);
     }
   }
+
   async uploadReceipt(documentId: number, receiptFile: Express.Multer.File) {
     try {
       console.log('🧾 Received Receipt File:', receiptFile);
@@ -312,7 +389,7 @@ export class DocumentsService {
       }
 
       // ✅ Upload the receipt file to S3
-      const receiptUrl = await this.s3Service.uploadFile(receiptFile);
+      const receiptUrl = await this.localStorageService.uploadFile(receiptFile);
 
       // ✅ Update the document record with the receipt URL
       document.receipt_url = receiptUrl;
@@ -326,13 +403,49 @@ export class DocumentsService {
       throw new InternalServerErrorException('Failed to upload receipt');
     }
   }
+  async updateReceipt(documentId: number, receiptFile: Express.Multer.File) {
+    if (!receiptFile) {
+      throw new BadRequestException('A receipt file must be uploaded.');
+    }
+
+    const document = await this.documentRepository.findOne({
+      where: { document_id: documentId },
+    });
+    if (!document) {
+      throw new NotFoundException('Document not found.');
+    }
+
+    try {
+      // 🔄 (optional) delete old file from S3 if present
+      if (document.receipt_url) {
+        await this.localStorageService.deleteFile(document.receipt_url);
+      }
+
+      // ✅ upload the new file
+      const newReceiptUrl = await this.localStorageService.uploadFile(receiptFile);
+
+      // ✅ update and save
+      document.receipt_url = newReceiptUrl;
+      const updated = await this.documentRepository.save(document);
+
+      console.log('✅ Receipt updated successfully:', updated);
+      return {
+        message: 'Receipt updated successfully',
+        document: updated,
+      };
+    } catch (error) {
+      console.error('❌ Error updating receipt:', error);
+      throw new InternalServerErrorException('Failed to update receipt');
+    }
+  }
+
   // Send email when document status is "Approved"
   async sendStatusApprovedEmail(document: any) {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: 'rutujadeshmukh175@gmail.com', // Your email address
-        pass: 'hzaj osby vnsh ctyq', // Your email password or app password
+        pass: 'wrbc dwbq ittr lyqa', // Your email password or app password
       },
     });
 
@@ -364,7 +477,7 @@ Aaradhya Cyber`,
       service: 'gmail',
       auth: {
         user: 'rutujadeshmukh175@gmail.com', // Your email address
-        pass: 'hzaj osby vnsh ctyq', // Your email password or app password
+        pass: 'wrbc dwbq ittr lyqa', // Your email password or app password
       },
     });
 
@@ -399,7 +512,7 @@ Aaradhya Cyber`,
       service: 'gmail',
       auth: {
         user: 'rutujadeshmukh175@gmail.com', // Your email address
-        pass: 'hzaj osby vnsh ctyq', // Your email password or app password
+        pass: 'wrbc dwbq ittr lyqa', // Your email password or app password
       },
     });
 
@@ -431,7 +544,7 @@ Aaradhya Cyber`,
       service: 'gmail',
       auth: {
         user: 'rutujadeshmukh175@gmail.com', // Your email address
-        pass: 'hzaj osby vnsh ctyq', // Your email password or app password
+        pass: 'wrbc dwbq ittr lyqa', // Your email password or app password
       },
     });
 
@@ -470,7 +583,7 @@ Aaradhya Cyber`,
   //     // ✅ Upload files to S3 and store their details
   //     const documentFiles = await Promise.all(
   //       files.map(async (file) => {
-  //         const fileUrl = await this.s3Service.uploadFile(file);
+  //         const fileUrl = await this.localStorageService.uploadFile(file);
   //         return {
   //           document_type: file.mimetype,
   //           file_path: fileUrl,
@@ -527,36 +640,37 @@ Aaradhya Cyber`,
   //   }
   // }
 
-  private getFirstPartOfSubcategory(subcategoryName: string): string {
-    // Split the subcategory name by spaces and take the first part
-    const firstPart = subcategoryName.split(' ')[0];
-    // Remove special characters and convert to uppercase
-    return firstPart.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  // Generate a smart prefix from the entire subcategory name
+  private getSubcategoryPrefix(subcategoryName: string): string {
+    return subcategoryName
+      .toUpperCase()                         // Make it uppercase
+      .replace(/CERTIFICATE/g, 'CERT')      // Optional shortening
+      .replace(/YEAR/g, 'Y')                // Replace 'Year' with 'Y'
+      .replace(/[^A-Z0-9]/g, '')            // Remove spaces and special characters
+      .substring(0, 10);                    // Limit length to avoid long prefixes
   }
 
   private async generateApplicationId(subcategoryName: string): Promise<string> {
-    // Extract the first part of the subcategory name
-    const prefix = this.getFirstPartOfSubcategory(subcategoryName);
+    const prefix = this.getSubcategoryPrefix(subcategoryName);  // Ex: INCOMECERT3Y
 
-    // Find the latest document for the given subcategory
-    const latestDocument = await this.documentRepository.findOne({
-      where: { subcategory_name: subcategoryName },
-      order: { application_id: 'DESC' }, // Get the latest document
-    });
+    const latestDocument = await this.documentRepository
+      .createQueryBuilder('document')
+      .where('document.application_id LIKE :prefix', { prefix: `${prefix}%` })
+      .orderBy('document.application_id', 'DESC')
+      .getOne();
 
-    let nextNumber = 1; // Default starting number
+    let nextNumber = 1;
 
-    if (latestDocument && latestDocument.application_id) {
-      // Extract the numeric part from the latest application_id
-      const lastNumber = parseInt(latestDocument.application_id.replace(prefix, ''), 10);
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1; // Increment the number
+    if (latestDocument?.application_id) {
+      const match = latestDocument.application_id.match(/\d+$/);
+      if (match) {
+        nextNumber = parseInt(match[0], 10) + 1;
       }
     }
 
-    // Format the application_id (e.g., "INCOME01", "INCOME02", etc.)
     return `${prefix}${nextNumber.toString().padStart(2, '0')}`;
   }
+
   async uploadDocuments(files: Express.Multer.File[], body: any) {
     try {
       console.log('📂 Received Files:', files);
@@ -570,7 +684,7 @@ Aaradhya Cyber`,
       // ✅ Upload files to S3 and store their details
       const documentFiles = await Promise.all(
         files.map(async (file, index) => {
-          const fileUrl = await this.s3Service.uploadFile(file);
+          const fileUrl = await this.localStorageService.uploadFile(file);
 
           // Use the document_types array from the body to set the document_type
           const customDocType = body.document_types ? body.document_types[index] : null;
@@ -664,7 +778,7 @@ Aaradhya Cyber`,
       service: 'gmail',
       auth: {
         user: 'rutujadeshmukh175@gmail.com', // Your email address
-        pass: 'hzaj osby vnsh ctyq', // Your email password or app password
+        pass: 'wrbc dwbq ittr lyqa', // Your email password or app password
       },
     });
 

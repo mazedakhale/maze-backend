@@ -19,6 +19,7 @@ export class FeedbackService {
                 "feedback.comment",
                 "feedback.rating",
                 "feedback.user_id",
+                "feedback.status",
                 "users.name",  // Get users.name
                 "users.role"   // Get users.role
             ])
@@ -36,8 +37,13 @@ export class FeedbackService {
         const newFeedback = this.feedbackRepository.create({ comment, rating, user_id });
         return await this.feedbackRepository.save(newFeedback);
     }
-
-
+    async updateStatus(id: number, status: number): Promise<{ message: string }> {
+        const result = await this.feedbackRepository.update(id, { status });
+        if (result.affected === 0) {
+            throw new NotFoundException(`Feedback #${id} not found`);
+        }
+        return { message: 'Status updated' };
+    }
     async update(id: number, comment: string, rating: number): Promise<Feedback> {
         const feedback = await this.findOne(id);
         feedback.comment = comment;

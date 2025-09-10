@@ -1,10 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
-@Entity('DocumentTypes')
+@Entity('documenttypes')
 export class DocumentType {
-    @PrimaryGeneratedColumn()
-    doc_type_id: number;
+  @PrimaryGeneratedColumn()
+  doc_type_id: number;
 
-    @Column({ type: 'varchar', length: 255, unique: true })
-    doc_type_name: string;
+  @Column({ type: 'varchar', length: 255, unique: true })
+  doc_type_name: string;
 }

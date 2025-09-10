@@ -1,45 +1,64 @@
+// privacy-policy.controller.ts
 import {
     Controller,
     Post,
     Put,
     Delete,
+    Get,
     Param,
+    Body,
     UploadedFile,
     UseInterceptors,
     ParseIntPipe,
     NotFoundException,
     InternalServerErrorException,
-    Get,
+    BadRequestException,
+    ParseEnumPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PrivacyPolicyService } from './privacy-policy.service';
+import { PolicyType } from './privacy-policy.entity';
 import { Express } from 'express';
 
 @Controller('privacy-policy')
 export class PrivacyPolicyController {
     constructor(private readonly privacyPolicyService: PrivacyPolicyService) { }
 
-    // Create a new PrivacyPolicy entry
     @Post()
     @UseInterceptors(FileInterceptor('file'))
-    async create(@UploadedFile() file: Express.Multer.File) {
+    async create(
+        @UploadedFile() file: Express.Multer.File,
+        @Body('policyType') policyType: PolicyType,
+    ) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded.');
+        }
+        if (!Object.values(PolicyType).includes(policyType)) {
+            throw new BadRequestException('Invalid policyType');
+        }
         try {
-            return await this.privacyPolicyService.create(file);
+            return await this.privacyPolicyService.create(file, policyType);
         } catch (error) {
             console.error('Error in create controller:', error);
             throw new InternalServerErrorException('Failed to create privacy policy.');
         }
     }
 
-    // Update an existing PrivacyPolicy entry
     @Put(':id')
     @UseInterceptors(FileInterceptor('file'))
     async update(
         @Param('id', ParseIntPipe) id: number,
         @UploadedFile() file: Express.Multer.File,
+        @Body('policyType') policyType: PolicyType,
     ) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded.');
+        }
+        if (!Object.values(PolicyType).includes(policyType)) {
+            throw new BadRequestException('Invalid policyType');
+        }
         try {
-            return await this.privacyPolicyService.update(id, file);
+            return await this.privacyPolicyService.update(id, file, policyType);
         } catch (error) {
             console.error('Error in update controller:', error);
             if (error instanceof NotFoundException) {
@@ -48,6 +67,7 @@ export class PrivacyPolicyController {
             throw new InternalServerErrorException('Failed to update privacy policy.');
         }
     }
+
     @Get()
     async findAll() {
         try {
@@ -57,7 +77,14 @@ export class PrivacyPolicyController {
             throw new InternalServerErrorException('Failed to fetch privacy policies.');
         }
     }
-    // Delete a PrivacyPolicy entry
+    @Get('type/:policyType')
+    async findByType(
+        @Param('policyType', new ParseEnumPipe(PolicyType))
+        policyType: PolicyType,
+    ) {
+        return this.privacyPolicyService.findByType(policyType);
+    }
+
     @Delete(':id')
     async delete(@Param('id', ParseIntPipe) id: number) {
         try {

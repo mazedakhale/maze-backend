@@ -28,15 +28,20 @@ export class RequestError {
 
   @Column({ type: 'varchar', length: 50, default: 'Pending' })
   request_status: string; // Default: Pending
-
-  @Column({ type: 'varchar', length: 10, unique: true })
+  // no longer unique
+  @Column({ type: 'varchar', length: 50 })
   application_id: string;
-
   @Column({ type: 'varchar', length: 100, nullable: false })
   request_name: string; // ✅ Updated: Name Field
 
   @Column({ type: 'varchar', length: 100, nullable: false })
   request_email: string; // ✅ Updated: Email Field
+  // src/entities/request-error.entity.ts
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  error_type: string | null;
+
+
 
   @CreateDateColumn({ type: 'timestamp' })
   request_date: Date;

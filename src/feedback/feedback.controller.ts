@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Put, ParseBoolPipe, ParseIntPipe } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
 @Controller('feedback')
 export class FeedbackController {
@@ -8,6 +8,15 @@ export class FeedbackController {
     getAll() {
         return this.feedbackService.findAll();
     }
+    // In your controller
+    @Patch('status/:id')
+    async updateStatus(
+        @Param('id', ParseIntPipe) id: number,
+        @Body('status', ParseIntPipe) status: number,   // parse as integer
+    ): Promise<{ message: string }> {
+        return this.feedbackService.updateStatus(id, status);
+    }
+
 
     @Get(':id')
     getOne(@Param('id') id: number) {

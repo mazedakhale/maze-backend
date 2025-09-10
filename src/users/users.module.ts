@@ -3,15 +3,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { User } from './entities/users.entity';
+import { AuthUser } from '../auth/entities/user.entity';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 
-import { S3Service } from './s3.service';
+import { LocalStorageService } from './local-storage.service';
 
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, AuthUser]),
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -23,6 +24,6 @@ import { S3Service } from './s3.service';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService, S3Service], 
+  providers: [UsersService, LocalStorageService], 
 })
 export class UsersModule {}

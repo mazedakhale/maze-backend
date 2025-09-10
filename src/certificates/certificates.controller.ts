@@ -9,7 +9,8 @@ import {
   BadRequestException,
   InternalServerErrorException,
   Patch,
-  Put
+  Put,
+  NotFoundException
 } from '@nestjs/common';
 import { CertificatesService } from './certificates.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -63,6 +64,23 @@ export class CertificatesController {
     return this.certificatesService.getCertificatesByDocumentId(documentId);
   }
 
+
+  @Get('certificate/:applicationId')
+  async getCertificateByApplicationId(
+    @Param('applicationId') applicationId: string,
+  ) {
+    try {
+      return await this.certificatesService.getCertificateByApplicationId(
+        applicationId,
+      );
+    } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      console.error('❌ Error in controller:', err);
+      throw new InternalServerErrorException(
+        'Failed to fetch certificate by application_id',
+      );
+    }
+  }
 
 
   @Patch('update/:documentId')

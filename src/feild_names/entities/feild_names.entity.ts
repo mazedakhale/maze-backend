@@ -2,21 +2,23 @@ import { Entity, PrimaryGeneratedColumn, ManyToOne, Column, CreateDateColumn } f
 import { Category } from 'src/categories/entities/categories.entity';
 import { Subcategory } from 'src/subcategories/entities/subcategories.entity';
 
-@Entity('FeildName') // Table name
+@Entity('feildname')
 export class FeildName {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @ManyToOne(() => Category, (category) => category.requiredDocuments, { onDelete: 'CASCADE' })
-    category: Category;
+  @ManyToOne(() => Category, (category) => category.requiredDocuments, { onDelete: 'CASCADE' })
+  category: Category;
 
-    @ManyToOne(() => Subcategory, (subcategory) => subcategory.requiredDocuments, { onDelete: 'CASCADE' })
-    subcategory: Subcategory;
+  @ManyToOne(() => Subcategory, (subcategory) => subcategory.requiredDocuments, {
+    onDelete: 'CASCADE',
+  })
+  subcategory: Subcategory;
 
-    @Column({ type: 'text', nullable: false })
-    document_fields: string; // Now it matches the request body
+  @Column({ type: 'text', nullable: false })
+  document_fields: string;
 
-
-    @CreateDateColumn({ type: 'timestamp' })
-    created_at: Date;
+  // ✅ Fully MySQL 8+ compatible with microsecond precision
+  @CreateDateColumn({ type: 'datetime', precision: 6, default: () => 'CURRENT_TIMESTAMP(6)' })
+  createdAt: Date;
 }

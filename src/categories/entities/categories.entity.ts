@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } f
 import { Subcategory } from '../../subcategories/entities/subcategories.entity';
 import { RequiredDocument } from '../../required-documents/required-document.entity';
 
-@Entity('Categories')
+@Entity('categories')
 export class Category {
   @PrimaryGeneratedColumn()
   category_id: number;
@@ -16,8 +16,10 @@ export class Category {
   @OneToMany(() => RequiredDocument, (requiredDocument) => requiredDocument.category)
   requiredDocuments: RequiredDocument[];
 
-
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({
+    type: 'timestamp',
+    precision: 6,
+    default: () => 'CURRENT_TIMESTAMP(6)',
+  })
   created_at: Date;
-  id: any;
 }

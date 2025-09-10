@@ -7,18 +7,23 @@ import * as archiver from 'archiver';
 import { Response } from 'express';
 import * as path from 'path';
 import { Certificate } from 'src/certificates/entities/certificates.entity';
+import { ConfigService } from '@nestjs/config'; // ✅ Import ConfigService
 
 @Injectable()
 export class DownloadService {
   private s3 = new S3();
-
+  private s3Bucket: string;
   constructor(
     @InjectRepository(Document)
     private documentRepository: Repository<Document>,
-    @InjectRepository(Certificate)
-    private certificateRepository: Repository<Certificate>
-  ) { }
 
+    @InjectRepository(Certificate)
+    private certificateRepository: Repository<Certificate>,
+
+    private readonly configService: ConfigService, // ✅ Inject ConfigService
+  ) {
+    this.s3Bucket = this.configService.get<string>('AWS_S3_BUCKET_NAME') || 'default-bucket-name';
+  }
 
   async allDocuments(documentId: number, res: Response) {
     try {
@@ -126,7 +131,7 @@ export class DownloadService {
   }
 
   async addFileToZip(archive: archiver.Archiver, fileUrl: string, folderPath: string, fileNamePrefix: string) {
-    const s3Bucket = 'vendorpunam';
+    const s3Bucket = this.s3Bucket;
     let s3Key = fileUrl.trim();
 
     // Extract only the object key from the full S3 URL
@@ -264,7 +269,7 @@ export class DownloadService {
 
   // Helper function to add files to the ZIP
   async FileToZip(archive: archiver.Archiver, fileUrl: string, folderPath: string, fileNamePrefix: string) {
-    const s3Bucket = 'vendorpunam';
+    const s3Bucket = this.s3Bucket;
     let s3Key = fileUrl.trim();
 
     // Extract only the object key from the full S3 URL

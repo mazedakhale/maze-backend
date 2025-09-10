@@ -1,19 +1,18 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
-import { UsersModule } from './users/users.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
+import { config } from 'dotenv';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-// Load environment variables early
-import { config } from 'dotenv';
+import { UsersModule } from './users/users.module';
 import { CategoriesModule } from './categories/categories.module';
 import { SubcategoriesModule } from './subcategories/subcategories.module';
 import { DocumentsModule } from './documents/documents.module';
 import { CertificatesModule } from './certificates/certificates.module';
 import { RequiredDocumentsModule } from './required-documents/required-documents.module';
-import { DocumentType } from './document-types/entities/document-type/document-type.entity.';
 import { DocumentTypesModule } from './document-types/document-types.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { FeildNamesModule } from './feild_names/feild_names.module';
@@ -28,25 +27,45 @@ import { FieldModule } from './feild/feild.module';
 import { ContactModule } from './contact/contact.module';
 import { PrivacyPolicyModule } from './privacy-policy/privacy-policy.module';
 import { EmployeeModule } from './employee/employee.module';
+import { ImageModule } from './image/image.module';
+import { PricesModule } from './prices/prices.module';
+import { NewsModule } from './news/news.module';
+import { WalletModule } from './wallet/wallet.module';
+import { RazorpayModule } from './razorpay/razorpay.module';
+import { SmsModule } from './sms/sms.module';
+import { HeaderModule } from './header/header.module';
+import { ContactInfoModule } from './contact-info/contact-info.module';
+import { AuthModule } from './auth/auth.module';
 
-config();
+config(); // Load .env early
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // Makes the config available across the entire application
+      isGlobal: true,
     }),
+
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: 'localhost',
-      port: 3306,
-      username: 'myapp_user',
-      password: 'Dalal691*',
-      database: 'vmdb',
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT || '3306', 10),
+      username: process.env.DB_USER,
+      password: process.env.DB_PASS,
+      database: process.env.DB_NAME,
       autoLoadEntities: true,
-      synchronize: true,
-
+      synchronize: false, // Changed to false to prevent data loss
     }),
+
+    HttpModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (cfg: ConfigService) => ({
+        baseURL: cfg.get<string>('LIVEONE_BASE_URL'),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    }),
+
+    // Your feature modules
     UsersModule,
     CategoriesModule,
     SubcategoriesModule,
@@ -54,7 +73,6 @@ config();
     DocumentTypesModule,
     CertificatesModule,
     RequiredDocumentsModule,
-    DocumentType,
     FeildNamesModule,
     StatisticsModule,
     UserDashboardModule,
@@ -67,9 +85,18 @@ config();
     FieldModule,
     ContactModule,
     EmployeeModule,
-
-    PrivacyPolicyModule],
+    ImageModule,
+    PricesModule,
+    WalletModule,
+    RazorpayModule,
+    SmsModule,
+    HeaderModule,
+    ContactInfoModule,
+    NewsModule,
+    PrivacyPolicyModule,
+    AuthModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

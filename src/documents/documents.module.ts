@@ -3,11 +3,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
 import { Document } from './entities/documents.entity';
-import { S3Service } from './s3.service';
+import { LocalStorageService } from './local-storage.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Document])],
-  providers: [DocumentsService, S3Service],
+  providers: [DocumentsService, LocalStorageService],
   controllers: [DocumentsController],
 })
 export class DocumentsModule { }

@@ -53,7 +53,7 @@ config(); // Load .env early
       password: process.env.DB_PASS,
       database: process.env.DB_NAME,
       autoLoadEntities: true,
-      synchronize: false, // Changed to false to prevent data loss
+      synchronize: true, // Changed to false to prevent data loss
     }),
 
     HttpModule.registerAsync({

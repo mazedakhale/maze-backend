@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
+import { MailService } from './mail.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -20,6 +21,7 @@ export class AuthService {
     private userRepository: Repository<AuthUser>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private mailService: MailService,
   ) {
     // Initialize admin user on service startup
     this.initializeAdminUser();
@@ -173,7 +175,20 @@ export class AuthService {
       const savedUser = await this.userRepository.save(newUser);
 
       // Generate JWT token
-      const access_token = this.generateToken(savedUser);
+      let access_token: string;
+      if (savedUser) {
+        access_token = this.generateToken(savedUser);
+      } else {
+        throw new ConflictException('Failed to save user');
+      }
+
+      // Send welcome email only if token is generated
+      try {
+        await this.mailService.sendWelcomeEmail(savedUser.email);
+      } catch (emailError) {
+        this.logger.error(`Failed to send welcome email to ${savedUser.email}`, emailError);
+        // Optionally, you could add a field to the response to indicate email failure
+      }
 
       // Log successful registration (without sensitive data)
       this.logger.log(`New user registered: ${savedUser.email}`);

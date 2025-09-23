@@ -15,6 +15,9 @@ import {
   ParseIntPipe,
   NotFoundException,
   ParseEnumPipe,
+  HttpException,
+  HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { EditRequestStatus, User, UserRole } from './entities/users.entity';
@@ -58,27 +61,27 @@ export class UsersController {
     return this.usersService.getRegisteredUsers();
   }
   @Post('register')
-@UseInterceptors(
-  FileFieldsInterceptor([
-    { name: 'files', maxCount: 5 },
-    { name: 'profilePhoto', maxCount: 1 }, // ✅ profile photo upload
-  ]),
-)
-async register(
-  @Body() body: Partial<User & { district: string; taluka: string }>,
-  @UploadedFiles() files: {
-    files?: Express.Multer.File[];
-    profilePhoto?: Express.Multer.File[]; // ✅ new field
-  },
-  @Body('documentTypes') documentTypes: string[],
-): Promise<User> {
-  return this.usersService.register(
-    body,
-    files?.files || [],
-    documentTypes,
-    files?.profilePhoto?.[0], // ✅ pass single profile photo
-  );
-}
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'files', maxCount: 5 },
+      { name: 'profilePhoto', maxCount: 1 }, // ✅ profile photo upload
+    ]),
+  )
+  async register(
+    @Body() body: Partial<User & { district: string; taluka: string }>,
+    @UploadedFiles() files: {
+      files?: Express.Multer.File[];
+      profilePhoto?: Express.Multer.File[]; // ✅ new field
+    },
+    @Body('documentTypes') documentTypes: string[],
+  ): Promise<User> {
+    return this.usersService.register(
+      body,
+      files?.files || [],
+      documentTypes,
+      files?.profilePhoto?.[0], // ✅ pass single profile photo
+    );
+  }
 
   // ✅ Update password for a specific user
   @Patch('password/:id')
@@ -148,13 +151,33 @@ async register(
     return this.usersService.getUserId(userId);
   }
 
-
-
-
   // ✅ Login User & Return JWT Token
   @Post('login')
   async login(@Body() body: { email: string; password: string }) {
-    return this.usersService.login(body.email, body.password);
+    try {
+      return await this.usersService.login(body.email, body.password);
+    } catch (error) {
+      if (error instanceof NotFoundException && error.message == 'Invalid email or password') {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.UNAUTHORIZED,
+            errorCode: 1000,
+            message: 'Invalid email or password',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      } else if (error instanceof UnauthorizedException && error.message === 'Wait for Admin Verification') {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.FORBIDDEN,
+            errorCode: 1001,
+            message: error.message,
+          },
+          HttpStatus.FORBIDDEN,
+        );
+      }
+      throw error; // Other unexpected errors
+    }
   }
 
   // src/users/users.controller.ts

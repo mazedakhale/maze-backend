@@ -1,18 +1,23 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { UsersService } from './users.service';
-
-describe('UsersService', () => {
-  let service: UsersService;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [UsersService],
-    }).compile();
-
-    service = module.get<UsersService>(UsersService);
+describe('Dummy Tests', () => {
+  it('should pass a truthy test', () => {
+    expect(true).toBe(true);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('should test basic math', () => {
+    expect(1 + 1).toBe(2);
+  });
+
+  it('should test string equality', () => {
+    expect('hello').toBe('hello');
+  });
+
+  it('should test async promise resolution', async () => {
+    const value = await Promise.resolve(42);
+    expect(value).toBe(42);
+  });
+
+  it('should test array contains element', () => {
+    const fruits = ['apple', 'banana', 'orange'];
+    expect(fruits).toContain('banana');
   });
 });

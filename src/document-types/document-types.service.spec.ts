@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DocumentTypesService } from './document-types.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DocumentType } from './entities/document-type/document-type.entity.';
+import { DocumentType } from './entities/document-type/document-type.entity';
 describe('DocumentTypesService', () => {
   let service: DocumentTypesService;
 

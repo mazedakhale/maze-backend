@@ -1,5 +1,4 @@
-
-
+import { Feedback } from 'src/feedback/entities/feedback.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -7,7 +6,6 @@ import {
   CreateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { Feedback } from 'src/feedback/entities/feedback.entity';
 
 export enum UserRole {
   ADMIN = 'Admin',

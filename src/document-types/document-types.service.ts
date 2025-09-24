@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DocumentType } from './entities/document-type/document-type.entity.';
+import { DocumentType } from './entities/document-type/document-type.entity';
 import { CreateDocumentTypeDto } from './dto/document-type.dto';
 @Injectable()
 export class DocumentTypesService {

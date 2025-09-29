@@ -15,11 +15,23 @@ export class EmployeeService {
     }
 
     async findOne(id: number): Promise<Employee> {
-        const employee = await this.employeeRepository.findOne({ where: { id } });
+        const employee = await this.employeeRepository.findOne({
+            where: { id },
+            relations: ['category', 'subcategory'],  // Include relations here
+        });
+
         if (!employee) {
             throw new NotFoundException(`Employee with ID ${id} not found`);
         }
         return employee;
+    }
+
+    async findByUserId(userId: number): Promise<Employee[]> {
+        const assignments = await this.employeeRepository.find({
+            where: { user_id: userId },
+            relations: ['category', 'subcategory'],  // eager load related data
+        });
+        return assignments;
     }
 
     async createList(
@@ -31,8 +43,6 @@ export class EmployeeService {
             // Create documents for each subcategory
             const documents = subcategoryIds.map(subcategoryId =>
                 this.employeeRepository.create({
-                    category_id: categoryId,
-                    subcategory_id: subcategoryId,
                     user_id: userId,
                 })
             );
@@ -67,9 +77,6 @@ export class EmployeeService {
             const documents = subcategoryIds.map(subcategoryId =>
                 this.employeeRepository.create({
                     id,
-                    category_id: categoryId,
-                    subcategory_id: subcategoryId,
-                    user_id: userId,
                 })
             );
 

@@ -25,6 +25,16 @@ export class EmployeeController {
         }
     }
 
+    @Get('/employeeAsUser/:id')
+    async findByUserId(@Param('id', ParseIntPipe) id: number) {
+        try {
+            return await this.employeeService.findByUserId(id);
+        } catch (error) {
+            console.error('Error in findByUserId controller:', error);
+            throw new InternalServerErrorException('Failed to fetch employee assignments.');
+        }
+    }
+
     @Post()
     async createList(
         @Body('category_id', ParseIntPipe) categoryId: number,

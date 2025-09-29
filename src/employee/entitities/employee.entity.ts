@@ -1,26 +1,27 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+// employee.entity.ts
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Category } from '../../categories/entities/categories.entity';
+import { Subcategory } from '../../subcategories/entities/subcategories.entity';
 
 @Entity('employees')
 export class Employee {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  category_id: number;
+  @ManyToOne(() => Category, { eager: true })
+  @JoinColumn({ name: 'category_id' })
+  category: Category;
 
-  @Column()
-  subcategory_id: number;
+  @ManyToOne(() => Subcategory, { eager: true })
+  @JoinColumn({ name: 'subcategory_id' })
+  subcategory: Subcategory;
 
   @Column()
   user_id: number;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
 
-  @Column({
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-  })
+  @UpdateDateColumn({ type: 'timestamp' })
   updated_at: Date;
 }

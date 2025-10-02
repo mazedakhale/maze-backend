@@ -18,22 +18,37 @@ import {
   HttpException,
   HttpStatus,
   UnauthorizedException,
+  Query,
+  ValidationPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { EditRequestStatus, User, UserRole } from './entities/users.entity';
-import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
+  @Get('verify-email')
+  async verifyEmail(
+    @Query('token', new ValidationPipe({ transform: false, whitelist: false }))
+    token: string,
+  ) {
+    return this.usersService.verifyEmail(token);
+  }
 
+  @Post('resend-verification')
+  async resendVerification(@Body('email') email: string): Promise<{ message: string }> {
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+    await this.usersService.resendVerificationEmail(email);
+    return { message: 'Verification email resent successfully' };
+  }
 
-
-  // ✅ Update user status (Approve/Reject)
   @Patch('status/:id')
   async updateUserStatus(
-    @Param('id') userId: number,
+    @Param('id', ParseIntPipe) userId: number,
     @Body() body: { status: 'Active' | 'Inactive' },
   ): Promise<string> {
     if (!body.status) {
@@ -42,7 +57,6 @@ export class UsersController {
     return this.usersService.updateUserStatus(userId, body.status);
   }
 
-  // ✅ Get all distributors
   @Get('distributors')
   async getDistributors(): Promise<User[]> {
     return this.usersService.getDistributors();
@@ -52,26 +66,30 @@ export class UsersController {
   async getCustomers(): Promise<User[]> {
     return this.usersService.getCustomers();
   }
+
   @Get('employee')
   async getEmployee(): Promise<User[]> {
     return this.usersService.getEmployee();
   }
+
   @Get('register')
   async getRegisteredUsers(): Promise<User[]> {
     return this.usersService.getRegisteredUsers();
   }
+
   @Post('register')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'files', maxCount: 5 },
-      { name: 'profilePhoto', maxCount: 1 }, // ✅ profile photo upload
+      { name: 'profilePhoto', maxCount: 1 }, // profile photo upload
     ]),
   )
   async register(
     @Body() body: Partial<User & { district: string; taluka: string }>,
-    @UploadedFiles() files: {
+    @UploadedFiles()
+    files: {
       files?: Express.Multer.File[];
-      profilePhoto?: Express.Multer.File[]; // ✅ new field
+      profilePhoto?: Express.Multer.File[];
     },
     @Body('documentTypes') documentTypes: string[],
   ): Promise<User> {
@@ -79,14 +97,13 @@ export class UsersController {
       body,
       files?.files || [],
       documentTypes,
-      files?.profilePhoto?.[0], // ✅ pass single profile photo
+      files?.profilePhoto?.[0],
     );
   }
 
-  // ✅ Update password for a specific user
   @Patch('password/:id')
   async updatePassword(
-    @Param('id') userId: number,
+    @Param('id', ParseIntPipe) userId: number,
     @Body() body: { newPassword: string },
   ): Promise<string> {
     if (!body.newPassword) {
@@ -95,24 +112,48 @@ export class UsersController {
     return this.usersService.updatePassword(userId, body.newPassword);
   }
 
-  // ✅ User login
-  // @Post('login')
-  // async login(
-  //   @Body() body: { email: string; password: string },
-  // ): Promise<{ token: string; role: UserRole }> {
-  //   const { email, password } = body;
-  //   if (!email || !password) {
-  //     throw new BadRequestException('Email and password are required');
-  //   }
-  //   return this.usersService.login(email, password);
-  // }
-
-  // ✅ Edit user details
-  // @Put('edit/:id')
-  // editUser(@Param('id') userId: number, @Body() updateData: Partial<User>) {
-  //   return this.usersService.editUser(userId, updateData);
-  // }
-
+  @Post('login')
+  async login(@Body() body: { email: string; password: string }) {
+    try {
+      return await this.usersService.login(body.email, body.password);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException &&
+        error.message === 'Invalid email or password'
+      ) {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.UNAUTHORIZED,
+            errorCode: 1000,
+            message: 'Invalid email or password',
+          },
+          HttpStatus.UNAUTHORIZED,
+        );
+      } else if (
+        error instanceof UnauthorizedException &&
+        (error.message === 'Wait for Admin Verification' || error.message === 'Email not verified')
+      ) {
+        const errorCode = error.message === 'Wait for Admin Verification' ? 1001 : 1002;
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.FORBIDDEN,
+            errorCode,
+            message: error.message,
+          },
+          HttpStatus.FORBIDDEN,
+        );
+      } else {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            errorCode: 9999,
+            message: 'Unexpected error occurred',
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    }
+  }
 
   @Put('edit/:id')
   @UseInterceptors(FilesInterceptor('files', 5))
@@ -123,7 +164,7 @@ export class UsersController {
   ): Promise<User> {
     if ((!files || files.length === 0) && Object.keys(updateData).length === 0) {
       throw new BadRequestException(
-        'You must send at least one field to update or one file to upload'
+        'You must send at least one field to update or one file to upload',
       );
     }
 
@@ -131,61 +172,34 @@ export class UsersController {
       return await this.usersService.editUser(userId, updateData, files);
     } catch (err) {
       if (err instanceof NotFoundException) throw err;
-      throw new InternalServerErrorException(err.message || 'Failed to update user');
+      throw new InternalServerErrorException(
+        err.message || 'Failed to update user',
+      );
     }
   }
-  // ✅ Delete user
+
   @Delete('delete/:id')
-  deleteUser(@Param('id') userId: number) {
+  deleteUser(@Param('id', ParseIntPipe) userId: number) {
     return this.usersService.deleteUser(userId);
   }
 
   @Get('edit/:user_id')
-  async getUser(@Param('user_id') userId: number): Promise<User> {
+  async getUser(@Param('user_id', ParseIntPipe) userId: number): Promise<User> {
     return this.usersService.getUserById(userId);
   }
+
   @Get(':user_id')
   async getUserId(
-    @Param('user_id', ParseIntPipe) userId: number
+    @Param('user_id', ParseIntPipe) userId: number,
   ): Promise<User> {
     return this.usersService.getUserId(userId);
   }
 
-  // ✅ Login User & Return JWT Token
-  @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    try {
-      return await this.usersService.login(body.email, body.password);
-    } catch (error) {
-      if (error instanceof NotFoundException && error.message == 'Invalid email or password') {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.UNAUTHORIZED,
-            errorCode: 1000,
-            message: 'Invalid email or password',
-          },
-          HttpStatus.UNAUTHORIZED,
-        );
-      } else if (error instanceof UnauthorizedException && error.message === 'Wait for Admin Verification') {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.FORBIDDEN,
-            errorCode: 1001,
-            message: error.message,
-          },
-          HttpStatus.FORBIDDEN,
-        );
-      }
-      throw error; // Other unexpected errors
-    }
-  }
-
-  // src/users/users.controller.ts
   @Put('update/:id')
   @UseInterceptors(FileFieldsInterceptor([{ name: 'files', maxCount: 5 }]))
   async updateUser(
     @Param('id', ParseIntPipe) userId: number,
-    @Body() body: any,                      // ← grab everything
+    @Body() body: any, // grab everything
     @UploadedFiles() files: { files?: Express.Multer.File[] },
   ) {
     return this.usersService.updateUserWithDocuments(
@@ -195,23 +209,16 @@ export class UsersController {
       body.documentTypes || [],
     );
   }
+
   @Post('request-edit/:id')
-  async requestEdit(
-    @Param('id', ParseIntPipe) userId: number
-  ): Promise<string> {
+  async requestEdit(@Param('id', ParseIntPipe) userId: number): Promise<string> {
     return this.usersService.requestProfileEdit(userId);
   }
 
-  /**
-   * PATCH /api/users/request-edit/:id
-   * body: { status: "Approved" | "Rejected" }
-   * – called by the Admin to resolve the request
-   */
   @Patch('request-edit/:id')
   async resolveEdit(
     @Param('id', ParseIntPipe) userId: number,
-    @Body('status', new ParseEnumPipe(EditRequestStatus))
-    status: EditRequestStatus
+    @Body('status', new ParseEnumPipe(EditRequestStatus)) status: EditRequestStatus,
   ): Promise<string> {
     if (
       status !== EditRequestStatus.APPROVED &&

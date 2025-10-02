@@ -6,9 +6,8 @@ import { User } from './entities/users.entity';
 import { AuthUser } from '../auth/entities/user.entity';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-
 import { LocalStorageService } from './local-storage.service';
-
+import { MailModule } from '../auth/mail.module'; // Import MailModule here
 
 @Module({
   imports: [
@@ -22,8 +21,9 @@ import { LocalStorageService } from './local-storage.service';
         signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h' },
       }),
     }),
+    MailModule, // Import your dedicated MailModule
   ],
   controllers: [UsersController],
-  providers: [UsersService, LocalStorageService], 
+  providers: [UsersService, LocalStorageService],
 })
 export class UsersModule {}

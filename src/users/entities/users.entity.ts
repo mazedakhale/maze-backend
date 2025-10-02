@@ -95,8 +95,16 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   resetTokenExpiration: Date | null;
   @Column({ type: 'varchar', length: 500, nullable: true })
-  profile_picture: string | null; // ✅ New profile picture column
+  profile_picture: string | null;
 
+  @Column({ type: 'boolean', default: false })
+  isEmailVerified: boolean;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  emailVerificationToken: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  emailVerificationTokenExpiration: Date | null;
 
   @OneToMany(() => Feedback, (feedback) => feedback.user)
   feedbacks?: Feedback[];

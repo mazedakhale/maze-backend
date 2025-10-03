@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
     await app.listen(port, host);
 
     const displayHost = host === '0.0.0.0' ? 'localhost' : host;
-    console.log(`Application is running on: http://localhost:3000);
+    console.log(`Application is running on: http://localhost:3000`);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

@@ -1,56 +1,45 @@
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import * as bodyParser from 'body-parser';
+import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
-//TODO: Check if this is removed then email verification will work or not
-import {
-  ValidationPipe
-} from '@nestjs/common';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  try {
+    const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  app.enableCors();
+    app.enableCors({
+      origin: [
+        'http://localhost:5173', // local frontend
+        'https://euphonious-bombolone-63bf12.netlify.app', // deployed frontend
+      ],
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      credentials: true,
+      allowedHeaders: 'Content-Type, Authorization',
+    });
 
-  app.use(bodyParser.urlencoded({ extended: true }));
-  app.use(bodyParser.json());
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    transform: true,
-  }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+      }),
+    );
 
+    app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+      prefix: '/uploads/',
+    });
 
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
-  });
+    const port = parseInt(process.env.PORT ?? '3000', 10);
+    const host = process.env.HOST || '0.0.0.0';
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('NestJS Authentication API')
-    .setDescription('API for user registration, login, and JWT authentication mechanisms')
-    .setVersion('1.0')
-    .setContact('Your Team', 'https://yourwebsite.example', 'support@example.com')
-    .setLicense('MIT', 'https://opensource.org/licenses/MIT')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        description: 'Enter JWT token to authorize requests',
-      },
-      'jwt',
-    )
-    .build();
+    await app.listen(port, host);
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api', app, document);
-
-  const port = parseInt(process.env.PORT ?? '3000', 10);
-  const host = process.env.HOST || '0.0.0.0';
-  await app.listen(port, host);
-  const displayHost = host === '0.0.0.0' ? 'localhost' : host;
-  console.log(`Application is running on: http://${displayHost}:${port}/api`);
+    const displayHost = host === '0.0.0.0' ? 'localhost' : host;
+    console.log(`Application is running on: http://${displayHost}:${port}`);
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
 }
 
 bootstrap();

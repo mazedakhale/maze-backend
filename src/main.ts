@@ -16,7 +16,7 @@ async function bootstrap(): Promise<void> {
     const port = parseInt(process.env.PORT ?? '3000', 10);
     const host = process.env.HOST || '0.0.0.0';
 
-    await app.listen(port, host);
+    await app.listen(`maze-backend.railway.internal`, '3000');
 
     const displayHost = host === '0.0.0.0' ? 'localhost' : host;
     console.log(`Application is running on: http://localhost:3000`);

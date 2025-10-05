@@ -57,7 +57,7 @@ export class UsersService {
     }
     await this.userRepository.save(user);
     await this.mailService.sendStatusUpdateEmail(user, status);
-    
+
     return `User status updated to ${status}`;
   }
 
@@ -197,21 +197,22 @@ export class UsersService {
         this.logger.log(`Auth user created successfully for ${savedUser.email}`);
       } catch (authError) {
         this.logger.error(`Failed to create auth user for ${savedUser.email}`, authError);
-        // do not throw here to allow registration to succeed
+        // Do not throw here to allow registration to succeed
       }
 
+      /*
       try {
         const verificationLink = `https://maze-backend-production.up.railway.app/users/verify-email?token=${token}`;
         this.logger.log(`Sending email verification link to ${savedUser.email}`);
-        await this.mailService.sendEmailVerificationLink(savedUser.email, `https://maze-backend-production.up.railway.app/users/verify-email?token=${token}`);
+        await this.mailService.sendEmailVerificationLink(savedUser.email, verificationLink);
         this.logger.log(`Email verification link sent to ${savedUser.email}`);
       } catch (emailError) {
         this.logger.error(`Failed to send verification email to ${savedUser.email}`, emailError);
-        // proceed without throwing
+        // Proceed without throwing
       }
+      */
 
       return savedUser;
-
     } catch (err: any) {
       const code = err.code || err.errno || err.driverError?.code || err.driverError?.errno;
 

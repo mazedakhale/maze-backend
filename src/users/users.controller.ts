@@ -131,9 +131,20 @@ export class UsersController {
         );
       } else if (
         error instanceof UnauthorizedException &&
-        (error.message === 'Wait for Admin Verification' || error.message === 'Email not verified')
+        (
+          error.message === 'Wait for Admin Verification' ||
+        /* error.message === 'Email not verified' */ false
+        )
       ) {
-        const errorCode = error.message === 'Wait for Admin Verification' ? 1001 : 1002;
+        let errorCode;
+
+        if (error.message === 'Wait for Admin Verification') {
+          errorCode = 1001;
+        }
+        /*else if (error.message === 'Email not verified') {
+          errorCode = 1002;
+        }*/
+
         throw new HttpException(
           {
             statusCode: HttpStatus.FORBIDDEN,

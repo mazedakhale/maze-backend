@@ -11,11 +11,12 @@ async function bootstrap(): Promise<void> {
 
     app.enableCors({
       origin: [
-        'http://localhost:5173', // local frontend
-        'https://euphonious-bombolone-63bf12.netlify.app', // deployed frontend
+        'http://localhost:5173',
+        'https://euphonious-bombolone-63bf12.netlify.app',
+        'http://172.23.112.1:5173',  // add this local IP origin
       ],
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       credentials: true,
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: 'Content-Type, Authorization',
     });
 
@@ -52,7 +53,7 @@ async function bootstrap(): Promise<void> {
 
     const port = parseInt(process.env.PORT ?? '3000', 10);
     const host = process.env.HOST || '0.0.0.0';
-    
+
     await app.listen(port, host);
 
     const displayHost = host === '0.0.0.0' ? 'localhost' : host;

@@ -49,10 +49,15 @@ export class UsersService {
   async updateUserStatus(userId: number, status: 'Active' | 'Inactive'): Promise<string> {
     const user = await this.userRepository.findOne({ where: { user_id: userId } });
     if (!user) throw new NotFoundException('User not found');
-
+    if (status === 'Active') {
+      user.user_login_status = LoginStatus.ACTIVE;
+    }
+    else {
+      user.user_login_status = LoginStatus.INACTIVE;
+    }
     await this.userRepository.save(user);
     await this.mailService.sendStatusUpdateEmail(user, status);
-
+    
     return `User status updated to ${status}`;
   }
 

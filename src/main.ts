@@ -52,8 +52,8 @@ async function bootstrap(): Promise<void> {
 
     const port = parseInt(process.env.PORT ?? '3000', 10);
     const host = process.env.HOST || '0.0.0.0';
-
-    await app.listen('3000', '0.0.0.0');
+    
+    await app.listen(port, host);
 
     const displayHost = host === '0.0.0.0' ? 'localhost' : host;
     console.log(`Application is running on: http://${displayHost}:${port}`);

@@ -275,9 +275,9 @@ export class UsersService {
       throw new UnauthorizedException('Wait for Admin Verification');
     }
 
-    if (!user.isEmailVerified) {
-      throw new UnauthorizedException('Email not verified');
-    }
+    // if (!user.isEmailVerified) {
+    //   throw new UnauthorizedException('Email not verified');
+    // }
 
     const payload = {
       user_id: user.user_id,

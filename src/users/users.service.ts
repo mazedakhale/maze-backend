@@ -13,15 +13,14 @@ import { User, UserRole, LoginStatus, EditRequestStatus } from './entities/users
 import { AuthUser } from '../auth/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { LocalStorageService } from './local-storage.service';
+import { HybridStorageService } from '../hybridStorageSystem/hybrid-storage.service'; // Update import path
 import { ConfigService } from '@nestjs/config';
 import { MailService } from '../auth/mail.service';
 import { randomBytes } from 'crypto';
-
+import { Express } from 'express';
 
 @Injectable()
 export class UsersService {
-
   private readonly logger = new Logger(UsersService.name)
 
   constructor(
@@ -35,10 +34,9 @@ export class UsersService {
 
     private configService: ConfigService,
 
-    private readonly localStorageService: LocalStorageService,
+    private readonly hybridStorageService: HybridStorageService, // This should now work
 
-    private readonly mailService: MailService, // Inject MailService here
-
+    private readonly mailService: MailService,
   ) { }
 
   private async hashPassword(password: string): Promise<string> {
@@ -97,17 +95,27 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
 
     if (files.length) {
+      // Delete old documents
       if (Array.isArray(user.user_documents) && user.user_documents.length) {
         await Promise.all(
-          user.user_documents.map(doc => this.localStorageService.deleteFile(doc.file_path)),
+          user.user_documents.map(doc => {
+            const storageType = doc.file_path.includes('drive.google.com') ? 'drive' : 'local';
+            return this.hybridStorageService.deleteFile(doc.file_path, storageType);
+          }),
         );
       }
+
+      // Upload new documents with fallback
       const uploadedDocs = await Promise.all(
-        files.map(async file => ({
-          document_type: file.originalname,
-          mimetype: file.mimetype,
-          file_path: await this.localStorageService.uploadFile(file),
-        })),
+        files.map(async file => {
+          const result = await this.hybridStorageService.uploadFile(file, 'user-documents');
+          return {
+            document_type: file.originalname,
+            mimetype: file.mimetype,
+            file_path: result.url,
+            storage_type: result.storage, // Track storage type
+          };
+        }),
       );
       updateData.user_documents = uploadedDocs;
     }
@@ -151,25 +159,31 @@ export class UsersService {
       district: data.district,
       taluka: data.taluka,
       user_login_status: LoginStatus.INACTIVE,
-      isEmailVerified: false, // Initialize as not verified
+      isEmailVerified: false,
     });
 
     try {
+      // Upload profile photo with fallback
       if (profilePhoto) {
         this.logger.log(`Uploading profile photo for ${data.email}`);
-        const profilePhotoUrl = await this.localStorageService.uploadFile(profilePhoto);
-        newUser.profile_picture = profilePhotoUrl;
-        this.logger.log(`Profile photo uploaded successfully: ${profilePhotoUrl}`);
+        const result = await this.hybridStorageService.uploadFile(profilePhoto, 'profile-photos');
+        newUser.profile_picture = result.url;
+        this.logger.log(`Profile photo uploaded successfully to ${result.storage}: ${result.url}`);
       }
 
+      // Upload documents with fallback
       if (files?.length) {
         this.logger.log(`Uploading ${files.length} document(s) for ${data.email}`);
         const uploadedDocuments = await Promise.all(
-          files.map(async (file, idx) => ({
-            document_type: documentTypes[idx] || 'Unknown',
-            mimetype: file.mimetype,
-            file_path: await this.localStorageService.uploadFile(file),
-          })),
+          files.map(async (file, idx) => {
+            const result = await this.hybridStorageService.uploadFile(file, 'user-documents');
+            return {
+              document_type: documentTypes[idx] || 'Unknown',
+              mimetype: file.mimetype,
+              file_path: result.url,
+              storage_type: result.storage, // Track storage type
+            };
+          }),
         );
         newUser.user_documents = uploadedDocuments;
         this.logger.log(`Documents uploaded successfully for ${data.email}`);
@@ -178,12 +192,13 @@ export class UsersService {
       // Generate email verification token
       const token = randomBytes(32).toString('hex');
       newUser.emailVerificationToken = token;
-      newUser.emailVerificationTokenExpiration = new Date(Date.now() + 3600 * 1000); // token valid for 1 hour
+      newUser.emailVerificationTokenExpiration = new Date(Date.now() + 3600 * 1000);
 
       this.logger.log(`Saving new user record in database for ${data.email}`);
       const savedUser = await this.userRepository.save(newUser);
       this.logger.log(`User record saved successfully with ID: ${savedUser.user_id}`);
 
+      // Create auth user
       try {
         const hashedPassword = await this.hashPassword(originalPassword);
         const authUser = this.authUserRepository.create({
@@ -197,20 +212,7 @@ export class UsersService {
         this.logger.log(`Auth user created successfully for ${savedUser.email}`);
       } catch (authError) {
         this.logger.error(`Failed to create auth user for ${savedUser.email}`, authError);
-        // Do not throw here to allow registration to succeed
       }
-
-      /*
-      try {
-        const verificationLink = `https://maze-backend-production.up.railway.app/users/verify-email?token=${token}`;
-        this.logger.log(`Sending email verification link to ${savedUser.email}`);
-        await this.mailService.sendEmailVerificationLink(savedUser.email, verificationLink);
-        this.logger.log(`Email verification link sent to ${savedUser.email}`);
-      } catch (emailError) {
-        this.logger.error(`Failed to send verification email to ${savedUser.email}`, emailError);
-        // Proceed without throwing
-      }
-      */
 
       return savedUser;
     } catch (err: any) {
@@ -338,13 +340,17 @@ export class UsersService {
           if (!type) throw new BadRequestException(`Missing documentType at index ${idx}`);
 
           const old = updatedDocs.find(d => d.document_type === type);
-          if (old) await this.localStorageService.deleteFile(old.file_path);
+          if (old) {
+            const storageType = old.file_path.includes('drive.google.com') ? 'drive' : 'local';
+            await this.hybridStorageService.deleteFile(old.file_path, storageType);
+          }
 
-          const url = await this.localStorageService.uploadFile(file);
+          const result = await this.hybridStorageService.uploadFile(file, 'user-documents');
           const entry = {
             document_type: type,
             mimetype: file.mimetype,
-            file_path: url,
+            file_path: result.url,
+            storage_type: result.storage, // Track storage type
           };
 
           const i = updatedDocs.findIndex(d => d.document_type === type);

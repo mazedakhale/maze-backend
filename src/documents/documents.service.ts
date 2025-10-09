@@ -3,18 +3,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Document } from './entities/documents.entity';
 import { Express } from 'express';
-import { LocalStorageService } from './local-storage.service';
+import { HybridStorageService } from '../hybridStorageSystem/hybrid-storage.service'; // Change from LocalStorageService
 import * as nodemailer from 'nodemailer';
 import { IsNull, Not } from "typeorm";
-
 
 @Injectable()
 export class DocumentsService {
   constructor(
     @InjectRepository(Document)
     private readonly documentRepository: Repository<Document>,
-
-    private readonly localStorageService: LocalStorageService
+    private readonly hybridStorageService: HybridStorageService // Change from LocalStorageService
   ) { }
 
   async getAllDocuments() {
@@ -26,16 +24,17 @@ export class DocumentsService {
       throw new InternalServerErrorException('Could not fetch documents');
     }
   }
+
   async getDocumentById(documentId: number) {
     return this.documentRepository.findOne({
       where: { document_id: documentId },
       select: ['document_id', 'status_history'], // Only fetch necessary fields
     });
   }
+
   async getReceiptByApplicationId(
     applicationId: string,
   ): Promise<{ receipt_url: string; application_id: string }> {
-    // TS infers `doc` as `Document | null`
     const doc = await this.documentRepository.findOne({
       where: { application_id: applicationId },
       select: ['receipt_url', 'documents', 'application_id'],
@@ -47,7 +46,6 @@ export class DocumentsService {
       );
     }
 
-    // Now `doc` is guaranteed non-null, so you can safely access its fields:
     if (doc.receipt_url) {
       return { receipt_url: doc.receipt_url, application_id: doc.application_id };
     }
@@ -68,7 +66,6 @@ export class DocumentsService {
       `No receipt found for application_id=${applicationId}`,
     );
   }
-
 
   async getAllDocumentsNoDistributor() {
     try {
@@ -98,6 +95,7 @@ export class DocumentsService {
       throw new InternalServerErrorException('Could not fetch assigned documents');
     }
   }
+
   async updateDocumentStatus(
     documentId: number,
     status: string,
@@ -154,11 +152,9 @@ export class DocumentsService {
       } else if (status === 'Sent') {
         // Handle logic for "Sent" status
         console.log('✅ Document status updated to "Sent".');
-        // You can add additional logic here if needed, such as sending an email notification.
       } else if (status === 'Received') {
         // Handle logic for "Received" status
         console.log('✅ Document status updated to "Received".');
-        // You can add additional logic here if needed, such as sending an email notification.
       } else {
         // For all other statuses, preserve the existing values
         console.log('⚠️ Status is neither "Rejected", "Uploaded", "Sent", nor "Received". Preserving existing values.');
@@ -206,92 +202,6 @@ export class DocumentsService {
     }
   }
 
-  // async updateDocumentStatus(
-  //   documentId: number,
-  //   status: string,
-  //   rejectionReason?: string,
-  //   selectedDocumentNames?: string[],
-  // ) {
-  //   try {
-  //     console.log('🔍 Finding document with ID:', documentId);
-  //     const document = await this.documentRepository.findOne({
-  //       where: { document_id: documentId },
-  //     });
-
-  //     if (!document) {
-  //       throw new BadRequestException('Document not found.');
-  //     }
-
-  //     console.log('📄 Document before update:', JSON.stringify(document, null, 2));
-
-  //     // Update the document status
-  //     document.status = status;
-
-  //     // Handle rejection reason and selected document names based on status
-  //     if (status === 'Rejected') {
-  //       // Validate rejection reason (required for "Rejected" status)
-  //       if (!rejectionReason?.trim()) {
-  //         throw new BadRequestException('Rejection reason is required for Rejected status.');
-  //       }
-
-  //       // Save rejection reason
-  //       document.rejection_reason = rejectionReason;
-  //       console.log('✅ Saved rejection reason:', rejectionReason);
-
-  //       // Save selected document names if provided
-  //       if (selectedDocumentNames) {
-  //         document.selected_document_names = selectedDocumentNames;
-  //         console.log('✅ Saved selected document names:', selectedDocumentNames.join(', '));
-  //       }
-  //     } else if (status === 'Uploaded') {
-  //       // Save selected document names if provided
-  //       if (selectedDocumentNames) {
-  //         document.selected_document_names = selectedDocumentNames;
-  //         console.log('✅ Saved selected document names:', selectedDocumentNames.join(', '));
-  //       }
-  //     } else {
-  //       // For all other statuses, preserve the existing values
-  //       console.log('⚠️ Status is neither "Rejected" nor "Uploaded". Preserving existing values.');
-  //     }
-
-  //     // Log the document after update
-  //     console.log('📄 Document after update:', JSON.stringify(document, null, 2));
-
-  //     // Save the updated document
-  //     const updatedDocument = await this.documentRepository.save(document);
-  //     console.log('✅ Document status updated successfully for document ID:', documentId);
-
-  //     // Send email based on the updated status
-  //     if (status === 'Rejected') {
-  //       const reason = rejectionReason || 'No reason provided'; // Provide a default value
-  //       await this.sendStatusRejectedEmail(updatedDocument, reason);
-  //       console.log('📧 Rejection email sent for document ID:', documentId);
-  //     } else if (status === 'Uploaded') {
-  //       await this.sendStatusUploadedEmail(updatedDocument);
-  //       console.log('📧 Upload confirmation email sent for document ID:', documentId);
-  //     }
-
-  //     // Return success response
-  //     return {
-  //       message: 'Status updated successfully',
-  //       document: updatedDocument,
-  //     };
-  //   } catch (error) {
-  //     // Log the error
-  //     console.error('❌ Error updating status:', error.stack);
-
-  //     // Handle specific errors
-  //     if (error instanceof BadRequestException) {
-  //       throw error; // Re-throw BadRequestException as is
-  //     }
-
-  //     // Throw a generic error for other cases
-  //     throw new InternalServerErrorException('Could not update document status');
-  //   }
-  // }
-
-  // In your DocumentsService:
-
   async reuploadDocument(
     documentId: number,
     documentType: string,
@@ -313,10 +223,11 @@ export class DocumentsService {
       throw new BadRequestException(`Document type "${documentType}" not found.`);
     }
 
-    // 3. Upload new file
-    const fileUrl = await this.localStorageService.uploadFile(file);
+    // 3. Upload new file using HybridStorageService and extract URL
+    const uploadResult = await this.hybridStorageService.uploadFile(file);
+    const fileUrl = uploadResult.url; // Extract just the URL string
 
-    // 4. Update the slot’s file info
+    // 4. Update the slot's file info
     document.documents[idx] = {
       ...document.documents[idx],
       file_path: fileUrl,
@@ -388,8 +299,9 @@ Aaradhya Cyber`,
         throw new BadRequestException('Document not found.');
       }
 
-      // ✅ Upload the receipt file to S3
-      const receiptUrl = await this.localStorageService.uploadFile(receiptFile);
+      // ✅ Upload the receipt file using HybridStorageService and extract URL
+      const uploadResult = await this.hybridStorageService.uploadFile(receiptFile);
+      const receiptUrl = uploadResult.url; // Extract just the URL string
 
       // ✅ Update the document record with the receipt URL
       document.receipt_url = receiptUrl;
@@ -403,6 +315,7 @@ Aaradhya Cyber`,
       throw new InternalServerErrorException('Failed to upload receipt');
     }
   }
+
   async updateReceipt(documentId: number, receiptFile: Express.Multer.File) {
     if (!receiptFile) {
       throw new BadRequestException('A receipt file must be uploaded.');
@@ -416,13 +329,9 @@ Aaradhya Cyber`,
     }
 
     try {
-      // 🔄 (optional) delete old file from S3 if present
-      if (document.receipt_url) {
-        await this.localStorageService.deleteFile(document.receipt_url);
-      }
-
-      // ✅ upload the new file
-      const newReceiptUrl = await this.localStorageService.uploadFile(receiptFile);
+      // ✅ Upload the new file using HybridStorageService and extract URL
+      const uploadResult = await this.hybridStorageService.uploadFile(receiptFile);
+      const newReceiptUrl = uploadResult.url; // Extract just the URL string
 
       // ✅ update and save
       document.receipt_url = newReceiptUrl;
@@ -470,7 +379,6 @@ Aaradhya Cyber`,
       console.error('❌ Error sending email:', error);
     }
   }
-
 
   async sendStatusRejectedEmail(document: any, rejectionReason: string) {
     const transporter = nodemailer.createTransport({
@@ -568,78 +476,6 @@ Aaradhya Cyber`,
     }
   }
 
-
-
-  // async uploadDocuments(files: Express.Multer.File[], body: any) {
-  //   try {
-  //     console.log('📂 Received Files:', files);
-  //     console.log('📝 Received Body:', body);
-
-  //     // ✅ Validate that at least one file is uploaded
-  //     if (!files || files.length === 0) {
-  //       throw new BadRequestException('At least one file must be uploaded.');
-  //     }
-
-  //     // ✅ Upload files to S3 and store their details
-  //     const documentFiles = await Promise.all(
-  //       files.map(async (file) => {
-  //         const fileUrl = await this.localStorageService.uploadFile(file);
-  //         return {
-  //           document_type: file.mimetype,
-  //           file_path: fileUrl,
-  //         };
-  //       })
-  //     );
-
-  //     // ✅ Parse document_fields safely
-  //     let documentFields = {};
-  //     if (body.document_fields) {
-  //       try {
-  //         documentFields = JSON.parse(body.document_fields);
-  //       } catch (error) {
-  //         console.error('❌ JSON Parse Error:', error);
-  //         throw new BadRequestException('Invalid JSON format for document_fields.');
-  //       }
-  //     }
-
-  //     // ✅ Ensure user_id is properly parsed
-  //     const userId = parseInt(body.user_id, 10);
-  //     if (isNaN(userId)) {
-  //       throw new BadRequestException('Invalid user_id. It must be a number.');
-  //     }
-
-  //     // ✅ Check for distributor_id (allow null)
-  //     const distributorId = body.distributor_id || null;
-
-  //     // ✅ Create the document entry
-  //     const document = this.documentRepository.create({
-  //       user_id: userId,
-  //       category_name: body.category_name || '',
-  //       subcategory_name: body.subcategory_name || '',
-  //       name: body.name || '',
-  //       email: body.email || '',
-  //       phone: body.phone || '',
-  //       address: body.address || '',
-  //       documents: documentFiles,
-  //       status: 'Pending', // Default status
-  //       distributor_id: distributorId,
-  //       document_fields: documentFields, // ✅ Store new document fields
-  //     });
-
-  //     // ✅ Save document to the database
-  //     const savedDocument = await this.documentRepository.save(document);
-  //     console.log('✅ Document saved successfully:', savedDocument);
-
-  //     // ✅ Send email notification after successful upload
-  //     await this.sendDocumentSubmissionEmail(savedDocument);
-
-  //     return { message: 'Upload successful', document: savedDocument };
-  //   } catch (error) {
-  //     console.error('❌ Error saving document:', error);
-  //     throw new InternalServerErrorException('Failed to process document upload');
-  //   }
-  // }
-
   // Generate a smart prefix from the entire subcategory name
   private getSubcategoryPrefix(subcategoryName: string): string {
     return subcategoryName
@@ -681,10 +517,12 @@ Aaradhya Cyber`,
         throw new BadRequestException('At least one file must be uploaded.');
       }
 
-      // ✅ Upload files to S3 and store their details
+      // ✅ Upload files using HybridStorageService and store their details
       const documentFiles = await Promise.all(
         files.map(async (file, index) => {
-          const fileUrl = await this.localStorageService.uploadFile(file);
+          // Upload file using HybridStorageService and extract URL
+          const uploadResult = await this.hybridStorageService.uploadFile(file);
+          const fileUrl = uploadResult.url; // Extract just the URL string
 
           // Use the document_types array from the body to set the document_type
           const customDocType = body.document_types ? body.document_types[index] : null;
@@ -772,6 +610,7 @@ Aaradhya Cyber`,
       throw new InternalServerErrorException('Failed to process document upload');
     }
   }
+
   // Helper function to send email
   async sendDocumentSubmissionEmail(document: any) {
     const transporter = nodemailer.createTransport({
@@ -805,9 +644,6 @@ Aaradhya Cyber`,
       console.error('❌ Error sending email:', error);
     }
   }
-
-
-
 
   async assignDistributor(documentId: number, distributorId: string, remark?: string | null) {
     if (!documentId || !distributorId) {
@@ -850,7 +686,6 @@ Aaradhya Cyber`,
     }
   }
 
-
   async getAllDocumentsByDistributor(distributorId: string) {
     try {
       console.log('🔍 Fetching documents for distributor:', distributorId);
@@ -877,8 +712,6 @@ Aaradhya Cyber`,
       .getMany();
   }
 
-
-
   // ✅ Update document fields dynamically
   async updateDocumentFields(documentId: number, updatedFields: Record<string, any>) {
     try {
@@ -901,9 +734,6 @@ Aaradhya Cyber`,
     }
   }
 
-
-
-
   async findByCategoryAndSubcategory(categoryId: number, subcategoryId: number) {
     try {
       const documents = await this.documentRepository.find({
@@ -919,7 +749,6 @@ Aaradhya Cyber`,
       return [];
     }
   }
-
 
   async findByCategorySubcategoryAndDistributor(categoryId: number, subcategoryId: number, distributorId?: string) {
     try {
@@ -941,9 +770,6 @@ Aaradhya Cyber`,
     }
   }
 
-
-
-
   async findByCategorySubcategoryAndUser(categoryId: number, subcategoryId: number, userId: number) {
     try {
       let documents = await this.documentRepository.find({
@@ -960,9 +786,6 @@ Aaradhya Cyber`,
       return [];
     }
   }
-
-
-
 
   async findByCategoryAndSubcategoryUserId(
     categoryId: number,
@@ -984,9 +807,6 @@ Aaradhya Cyber`,
       return [];
     }
   }
-
-
-
 }
 
 

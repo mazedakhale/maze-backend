@@ -5,6 +5,8 @@ import { RequiredDocument } from './required-document.entity';
 import { Category } from '../categories/entities/categories.entity';
 import { Subcategory } from '../subcategories/entities/subcategories.entity';
 import { S3Service } from './s3.service';
+import { HybridStorageService } from '../hybridStorageSystem/hybrid-storage.service';
+import { Express } from 'express';
 
 @Injectable()
 export class RequiredDocumentsService {
@@ -17,7 +19,9 @@ export class RequiredDocumentsService {
 
         @InjectRepository(Subcategory)
         private readonly subcategoryRepository: Repository<Subcategory>,
-        private readonly s3Service: S3Service, // Inject the S3Service
+        
+        private readonly s3Service: S3Service, // Keep for backward compatibility
+        private readonly hybridStorageService: HybridStorageService, // Add HybridStorageService
     ) { }
 
     async create(
@@ -51,17 +55,19 @@ export class RequiredDocumentsService {
                 throw new BadRequestException('No file uploaded.');
             }
 
-            // Step 4: Upload the file to S3
-            const fileUrl = await this.s3Service.uploadFile(file);
+            // Step 4: ✅ Upload the file using HybridStorageService and extract URL
+            const uploadResult = await this.hybridStorageService.uploadFile(file);
+            const fileUrl = uploadResult.url; // Extract just the URL string
 
             // Step 5: Update the file_url field in the RequiredDocument
             requiredDocument.file_url = fileUrl;
             await this.requiredDocumentRepository.save(requiredDocument);
 
+            console.log('✅ Required document created successfully with hybrid storage');
             // Return the combined result
             return { document: requiredDocument, fileUrl };
         } catch (error) {
-            console.error('Error in createAndUpload service:', error);
+            console.error('❌ Error in createAndUpload service:', error);
             throw new InternalServerErrorException('Failed to create and upload document.');
         }
     }
@@ -89,6 +95,19 @@ export class RequiredDocumentsService {
 
     async remove(id: number): Promise<{ message: string }> {
         const requiredDocument = await this.findOne(id);
+        
+        // ✅ Delete associated file using HybridStorageService before removing the record
+        if (requiredDocument.file_url) {
+            try {
+                const storageType = requiredDocument.file_url.includes('drive.google.com') ? 'drive' : 'local';
+                await this.hybridStorageService.deleteFile(requiredDocument.file_url, storageType);
+                console.log('✅ Required document file deleted successfully');
+            } catch (error) {
+                console.warn('⚠️ Could not delete required document file:', error.message);
+                // Continue with database deletion even if file deletion fails
+            }
+        }
+        
         await this.requiredDocumentRepository.remove(requiredDocument);
         return { message: 'Required Document deleted successfully' };
     }
@@ -130,20 +149,98 @@ export class RequiredDocumentsService {
             requiredDocument.subcategory = subcategory;
             requiredDocument.document_names = documentNames;
 
-            // Step 4: If a file is provided, upload it and update the file URL
+            // Step 4: ✅ If a file is provided, use hybrid storage for file management
             if (file) {
-                const fileUrl = await this.s3Service.uploadFile(file); // Upload the file to S3
-                requiredDocument.file_url = fileUrl; // Update the file URL in the document
+                // ✅ Delete old file if it exists
+                if (requiredDocument.file_url) {
+                    try {
+                        const storageType = requiredDocument.file_url.includes('drive.google.com') ? 'drive' : 'local';
+                        await this.hybridStorageService.deleteFile(requiredDocument.file_url, storageType);
+                        console.log('✅ Old required document file deleted successfully');
+                    } catch (error) {
+                        console.warn('⚠️ Could not delete old required document file:', error.message);
+                    }
+                }
+
+                // ✅ Upload new file using HybridStorageService and extract URL
+                const uploadResult = await this.hybridStorageService.uploadFile(file);
+                const fileUrl = uploadResult.url; // Extract just the URL string
+                requiredDocument.file_url = fileUrl;
             }
 
             // Step 5: Save the updated document
             await this.requiredDocumentRepository.save(requiredDocument);
 
+            console.log('✅ Required document updated successfully with hybrid storage');
             // Return the updated document and file URL
             return { document: requiredDocument, fileUrl: requiredDocument.file_url };
         } catch (error) {
-            console.error('Error in update service:', error);
+            console.error('❌ Error in update service:', error);
             throw new InternalServerErrorException('Failed to update document.');
+        }
+    }
+
+    // ✅ New method to update only the file using hybrid storage
+    async updateDocumentFile(id: number, file: Express.Multer.File): Promise<{ document: RequiredDocument; fileUrl: string }> {
+        try {
+            const requiredDocument = await this.findOne(id);
+
+            if (!file) {
+                throw new BadRequestException('No file uploaded.');
+            }
+
+            // ✅ Delete old file if it exists
+            if (requiredDocument.file_url) {
+                try {
+                    const storageType = requiredDocument.file_url.includes('drive.google.com') ? 'drive' : 'local';
+                    await this.hybridStorageService.deleteFile(requiredDocument.file_url, storageType);
+                    console.log('✅ Old required document file deleted successfully');
+                } catch (error) {
+                    console.warn('⚠️ Could not delete old required document file:', error.message);
+                }
+            }
+
+            // ✅ Upload new file using HybridStorageService and extract URL
+            const uploadResult = await this.hybridStorageService.uploadFile(file);
+            const fileUrl = uploadResult.url; // Extract just the URL string
+
+            // Update the file URL
+            requiredDocument.file_url = fileUrl;
+            await this.requiredDocumentRepository.save(requiredDocument);
+
+            console.log('✅ Required document file updated successfully');
+            return { document: requiredDocument, fileUrl };
+        } catch (error) {
+            console.error('❌ Error in updateDocumentFile service:', error);
+            throw new InternalServerErrorException('Failed to update document file.');
+        }
+    }
+
+    // ✅ Enhanced method using the existing updateFile functionality
+    async updateDocumentFileWithHybridUpdate(id: number, file: Express.Multer.File): Promise<{ document: RequiredDocument; fileUrl: string }> {
+        try {
+            const requiredDocument = await this.findOne(id);
+
+            if (!file) {
+                throw new BadRequestException('No file uploaded.');
+            }
+
+            // ✅ Use the existing updateFile method that handles both deletion and upload
+            const uploadResult = await this.hybridStorageService.updateFile(
+                requiredDocument.file_url, // old file URL
+                file,                      // new file
+                'required-documents'       // folder name
+            );
+
+            // Update the file URL
+            requiredDocument.file_url = uploadResult.url;
+            await this.requiredDocumentRepository.save(requiredDocument);
+
+            console.log('✅ Required document file updated successfully using hybrid update');
+            return { document: requiredDocument, fileUrl: uploadResult.url };
+        } catch (error) {
+            console.error('❌ Error in updateDocumentFileWithHybridUpdate service:', error);
+            throw new InternalServerErrorException('Failed to update document file.');
         }
     }
 }

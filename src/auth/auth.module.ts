@@ -8,6 +8,7 @@ import { MailService } from './mail.service';
 import { AuthController } from './auth.controller';
 import { AuthUser } from './entities/user.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleOAuthController } from './google-oauth.controller';
 
 /**
  * Authentication Module
@@ -36,7 +37,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController,GoogleOAuthController],
   providers: [
     AuthService,
     JwtStrategy, // JWT strategy for token validation

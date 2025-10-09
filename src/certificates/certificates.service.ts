@@ -5,6 +5,7 @@ import { Certificate } from './entities/certificates.entity';
 import { S3Service } from './s3.service';
 import { Express } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { HybridStorageService } from '../hybridStorageSystem/hybrid-storage.service';
 
 @Injectable()
 export class CertificatesService {
@@ -12,7 +13,8 @@ export class CertificatesService {
   constructor(
     @InjectRepository(Certificate)
     private readonly certificateRepository: Repository<Certificate>,
-    private readonly s3Service: S3Service
+    private readonly s3Service: S3Service,
+    private readonly hybridStorageService: HybridStorageService,
   ) { }
 
   async uploadReceipt(receiptFile: Express.Multer.File, documentId: string) {
@@ -35,8 +37,9 @@ export class CertificatesService {
         throw new BadRequestException('Invalid document_id. Must be a valid number.');
       }
 
-      // ✅ Upload receipt file to S3 and get URL
-      const receiptUrl = await this.s3Service.uploadFile(receiptFile);
+      // ✅ Upload receipt file using HybridStorageService and extract URL
+      const uploadResult = await this.hybridStorageService.uploadFile(receiptFile);
+      const receiptUrl = uploadResult.url; // Extract just the URL string
 
       // ✅ Check if a receipt already exists for the given document_id
       const existingReceipt = await this.certificateRepository.findOne({
@@ -64,6 +67,7 @@ export class CertificatesService {
       throw new InternalServerErrorException(`Failed to process receipt upload: ${error.message}`);
     }
   }
+
   async uploadCertificate(file: Express.Multer.File, body: any) {
     try {
       console.log('📂 Received File:', file);
@@ -78,8 +82,9 @@ export class CertificatesService {
         throw new BadRequestException('Only JPG, PNG, WEBP, and PDF files are allowed.');
       }
 
-      // ✅ Upload file to S3 and get URL
-      const fileUrl = await this.s3Service.uploadFile(file);
+      // ✅ Upload file using HybridStorageService and extract URL
+      const uploadResult = await this.hybridStorageService.uploadFile(file);
+      const fileUrl = uploadResult.url; // Extract just the URL string
 
       // ✅ Ensure user_id and document_id are valid numbers
       const userId = body.user_id ? Number(body.user_id) : null;
@@ -134,8 +139,6 @@ export class CertificatesService {
     }
   }
 
-
-
   // ✅ Fetch a single document by certificate_id
   async getDocumentById(certificateId: string) {
     const id = Number(certificateId); // Convert to number
@@ -160,7 +163,6 @@ export class CertificatesService {
     return await this.certificateRepository.find();
   }
 
-
   async getCertificatesByDocumentId(documentId: string) {
     const id = Number(documentId); // Convert to number
 
@@ -178,7 +180,6 @@ export class CertificatesService {
 
     return certificates;
   }
-
 
   async getCertificateByApplicationId(
     applicationId: string,
@@ -211,6 +212,7 @@ export class CertificatesService {
       application_id: doc.application_id,
     };
   }
+
   async updateCertificateFile(documentId: string, file: Express.Multer.File) {
     const id = Number(documentId);
 
@@ -231,8 +233,9 @@ export class CertificatesService {
       throw new BadRequestException('Only JPG, PNG, WEBP, and PDF files are allowed.');
     }
 
-    // ✅ Upload new file to S3
-    const newFileUrl = await this.s3Service.uploadFile(file);
+    // ✅ Upload new file using HybridStorageService and extract URL
+    const uploadResult = await this.hybridStorageService.uploadFile(file);
+    const newFileUrl = uploadResult.url; // Extract just the URL string
 
     // ✅ Update the certificate's file_url
     certificate.file_url = newFileUrl;
@@ -244,5 +247,4 @@ export class CertificatesService {
 
     return { message: 'Certificate file updated successfully.', certificate: updatedCertificate };
   }
-
 }

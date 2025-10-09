@@ -3,11 +3,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
 import { Document } from './entities/documents.entity';
-import { LocalStorageService } from './local-storage.service';
+import { HybridStorageModule } from '../hybridStorageSystem/hybrid-storage.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Document])],
-  providers: [DocumentsService, LocalStorageService],
+  imports: [
+    TypeOrmModule.forFeature([Document]),
+    HybridStorageModule, // Import the HybridStorageModule
+  ],
+  providers: [DocumentsService],
   controllers: [DocumentsController],
 })
-export class DocumentsModule { }
+export class DocumentsModule {}

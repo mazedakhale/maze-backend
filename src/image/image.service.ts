@@ -9,6 +9,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, IsNull } from 'typeorm';
 import { Image } from './image.entity';
 import { S3Service } from './s3.service';
+import { GoogleDriveService } from './drive.service';
+import { ConfigService } from '@nestjs/config';
 import { Express } from 'express';
 
 @Injectable()
@@ -16,14 +18,17 @@ export class ImageService {
     constructor(
         @InjectRepository(Image)
         private readonly imageRepository: Repository<Image>,
-        private readonly s3Service: S3Service
+        private readonly s3Service: S3Service,
+        private readonly googleDriveService: GoogleDriveService,
+        private readonly configService: ConfigService
     ) { }
 
     async createImage(
         file: Express.Multer.File,
         description?: string,
         youtubeLink?: string,
-        youtubeDescription?: string
+        youtubeDescription?: string,
+        storageType: 's3' | 'drive' = 'drive'
     ): Promise<Image> {
         if (!file) {
             throw new BadRequestException('Image file is required');
@@ -31,14 +36,30 @@ export class ImageService {
         if (youtubeLink && !this.isValidYouTubeUrl(youtubeLink)) {
             throw new BadRequestException('Invalid YouTube URL format');
         }
+
+        // Add file size check
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            throw new BadRequestException('File size too large (max 10MB)');
+        }
+
         try {
             const folder = youtubeLink ? 'youtube' : 'general';
-            const imageUrl = await this.s3Service.uploadFile(file, folder);
+            let imageUrl: string;
+
+            // Choose storage service based on parameter
+            if (storageType === 'drive') {
+                imageUrl = await this.googleDriveService.uploadFile(file, folder);
+            } else {
+                imageUrl = await this.s3Service.uploadFile(file, folder);
+            }
+
             const image = new Image();
             image.imageUrl = imageUrl;
             image.description = description ?? null;
             image.youtubeLink = youtubeLink ?? null;
             image.youtubeDescription = youtubeDescription ?? null;
+            
             return await this.imageRepository.save(image);
         } catch (error) {
             console.error('Error creating image:', error);
@@ -72,23 +93,47 @@ export class ImageService {
         file?: Express.Multer.File,
         description?: string,
         youtubeLink?: string,
-        youtubeDescription?: string
+        youtubeDescription?: string,
+        storageType: 's3' | 'drive' = 's3'
     ): Promise<Image> {
         try {
             const image = await this.imageRepository.findOneBy({ id });
             if (!image) throw new NotFoundException(`Image ${id} not found`);
+            
             if (youtubeLink && !this.isValidYouTubeUrl(youtubeLink)) {
                 throw new BadRequestException('Invalid YouTube URL format');
             }
+
             if (file) {
-                const folder =
-                    youtubeLink ?? image.youtubeLink ? 'youtube' : 'general';
-                if (image.imageUrl) await this.s3Service.deleteFile(image.imageUrl);
-                image.imageUrl = await this.s3Service.uploadFile(file, folder);
+                // Add file size check
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                if (file.size > maxSize) {
+                    throw new BadRequestException('File size too large (max 10MB)');
+                }
+
+                const folder = youtubeLink ?? image.youtubeLink ? 'youtube' : 'general';
+                
+                // Delete old file from appropriate service
+                if (image.imageUrl) {
+                    if (this.isGoogleDriveUrl(image.imageUrl)) {
+                        await this.googleDriveService.deleteFile(image.imageUrl);
+                    } else {
+                        await this.s3Service.deleteFile(image.imageUrl);
+                    }
+                }
+
+                // Upload new file to chosen service
+                if (storageType === 'drive') {
+                    image.imageUrl = await this.googleDriveService.uploadFile(file, folder);
+                } else {
+                    image.imageUrl = await this.s3Service.uploadFile(file, folder);
+                }
             }
+
             image.description = description ?? image.description;
             image.youtubeLink = youtubeLink ?? image.youtubeLink;
             image.youtubeDescription = youtubeDescription ?? image.youtubeDescription;
+            
             return await this.imageRepository.save(image);
         } catch (error) {
             if (
@@ -105,7 +150,16 @@ export class ImageService {
         try {
             const image = await this.imageRepository.findOneBy({ id });
             if (!image) throw new NotFoundException(`Image ${id} not found`);
-            if (image.imageUrl) await this.s3Service.deleteFile(image.imageUrl);
+            
+            if (image.imageUrl) {
+                // Delete from appropriate service
+                if (this.isGoogleDriveUrl(image.imageUrl)) {
+                    await this.googleDriveService.deleteFile(image.imageUrl);
+                } else {
+                    await this.s3Service.deleteFile(image.imageUrl);
+                }
+            }
+            
             await this.imageRepository.remove(image);
         } catch (error) {
             if (error instanceof NotFoundException) throw error;
@@ -131,5 +185,9 @@ export class ImageService {
     private isValidYouTubeUrl(url: string): boolean {
         const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
         return pattern.test(url);
+    }
+
+    private isGoogleDriveUrl(url: string): boolean {
+        return url.includes('drive.google.com');
     }
 }

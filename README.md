@@ -60,7 +60,7 @@ npm run start:prod
 ## API Documentation
 The API documentation is available via Swagger:
 ```
-https://maze-backend-production.up.railway.app/api/docs
+http://localhost:3000/api/docs
 ```
 
 ## Testing

@@ -212,7 +212,20 @@ export class UsersService {
         this.logger.log(`Auth user created successfully for ${savedUser.email}`);
       } catch (authError) {
         this.logger.error(`Failed to create auth user for ${savedUser.email}`, authError);
+        // Do not throw here to allow registration to succeed
       }
+
+      /*
+      try {
+        const verificationLink = `http://localhost:3000/users/verify-email?token=${token}`;
+        this.logger.log(`Sending email verification link to ${savedUser.email}`);
+        await this.mailService.sendEmailVerificationLink(savedUser.email, verificationLink);
+        this.logger.log(`Email verification link sent to ${savedUser.email}`);
+      } catch (emailError) {
+        this.logger.error(`Failed to send verification email to ${savedUser.email}`, emailError);
+        // Proceed without throwing
+      }
+      */
 
       return savedUser;
     } catch (err: any) {
@@ -264,7 +277,7 @@ export class UsersService {
     user.emailVerificationToken = token;
     user.emailVerificationTokenExpiration = new Date(Date.now() + 3600 * 1000); // 1 hour expiry
     await this.userRepository.save(user);
-    const verificationLink = `https://maze-backend-production.up.railway.app/users/verify-email?token=${token}`;
+    const verificationLink = `http://localhost:3000/users/verify-email?token=${token}`;
     // Send email (assuming mailService has sendEmailVerificationLink)
     await this.mailService.sendEmailVerificationLink(email, verificationLink);
   }
@@ -410,7 +423,7 @@ export class UsersService {
     user.resetToken = resetToken;
     user.resetTokenExpiration = new Date(Date.now() + 3600_000); // +1 hour
     await this.userRepository.save(user);
-    const frontUrl = 'https://maze-backend-production.up.railway.app';
+    const frontUrl = 'http://localhost:3000';
     const link = `${frontUrl}/reset-password?token=${resetToken}`;
     await this.mailService.sendPasswordResetEmail(user, link);
   }

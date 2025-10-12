@@ -1,26 +1,23 @@
-# Use the Node.js official image
-FROM node:18
+FROM node:18-alpine
 
-# Set working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+RUN apk add --no-cache bash curl jq
+
 COPY package*.json ./
+COPY wait-for-it.sh ./
 
-# Install dependencies, including NestJS CLI
+RUN chmod +x wait-for-it.sh
+
+RUN jq 'del(.scripts.prepare)' package.json > package.temp.json && mv package.temp.json package.json
+
 RUN npm install
+RUN npm prune --production
 
-# Ensure NestJS CLI is available globally
-RUN npm install -g @nestjs/cli
-
-# Copy all files into the container
 COPY . .
 
-# Build the app
 RUN npm run build
 
-# Expose the application port
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+CMD ["./wait-for-it.sh", "mysql:3306", "--", "node", "dist/main"]

@@ -51,7 +51,7 @@ config(); // Load .env early
       port: parseInt(process.env.DB_PORT || '3306', 10),
       username: process.env.DB_USERNAME,  // <-- use DB_USERNAME
       password: process.env.DB_PASSWORD,  // <-- use DB_PASSWORD
-      database: process.env.DB_DATABASE,  // <-- use DB_DATABASE
+      database: process.env.DB_NAME,  // <-- use DB_DATABASE
       autoLoadEntities: true,
       synchronize: true, // Changed to false to prevent data loss
     }),

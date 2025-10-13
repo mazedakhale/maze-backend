@@ -60,7 +60,7 @@ npm run start:prod
 ## API Documentation
 The API documentation is available via Swagger:
 ```
-http://localhost:3000/api/docs
+http://72.60.206.65:3000/api/docs
 ```
 
 ## Testing

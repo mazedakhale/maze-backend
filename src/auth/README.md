@@ -48,7 +48,7 @@ The admin user is automatically created on startup:
 ### 1. User Login
 
 ```bash
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST http://72.60.206.65:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin1@gmail.com",
@@ -72,7 +72,7 @@ curl -X POST http://localhost:3000/auth/login \
 ### 2. User Registration
 
 ```bash
-curl -X POST http://localhost:3000/auth/signup \
+curl -X POST http://72.60.206.65:3000/auth/signup \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -84,7 +84,7 @@ curl -X POST http://localhost:3000/auth/signup \
 ### 3. Access Protected Route
 
 ```bash
-curl -X GET http://localhost:3000/auth/profile \
+curl -X GET http://72.60.206.65:3000/auth/profile \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -184,19 +184,19 @@ CREATE TABLE auth_users (
 ### 1. Test Admin Login
 ```bash
 # Login as admin
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST http://72.60.206.65:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "admin1@gmail.com", "password": "123456"}'
 
 # Use the returned token for protected routes
-curl -X GET http://localhost:3000/auth/profile \
+curl -X GET http://72.60.206.65:3000/auth/profile \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
 ### 2. Test User Registration
 ```bash
 # Register a new user
-curl -X POST http://localhost:3000/auth/signup \
+curl -X POST http://72.60.206.65:3000/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email": "test@example.com", "password": "password123"}'
 ```

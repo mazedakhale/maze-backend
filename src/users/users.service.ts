@@ -212,7 +212,20 @@ export class UsersService {
         this.logger.log(`Auth user created successfully for ${savedUser.email}`);
       } catch (authError) {
         this.logger.error(`Failed to create auth user for ${savedUser.email}`, authError);
+        // Do not throw here to allow registration to succeed
       }
+
+      /*
+      try {
+        const verificationLink = `http://localhost:3000/users/verify-email?token=${token}`;
+        this.logger.log(`Sending email verification link to ${savedUser.email}`);
+        await this.mailService.sendEmailVerificationLink(savedUser.email, verificationLink);
+        this.logger.log(`Email verification link sent to ${savedUser.email}`);
+      } catch (emailError) {
+        this.logger.error(`Failed to send verification email to ${savedUser.email}`, emailError);
+        // Proceed without throwing
+      }
+      */
 
       return savedUser;
     } catch (err: any) {

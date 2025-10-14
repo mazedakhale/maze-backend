@@ -1,0 +1,26 @@
+services:
+  mysql:
+    image: mysql:8
+    container_name: mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: Amol@Amol1
+      MYSQL_DATABASE: maze_dakhle
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: always
+
+  nestjs-app:
+    build: .
+    container_name: nestjs_app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+    restart: always
+
+volumes:
+  mysql_data:

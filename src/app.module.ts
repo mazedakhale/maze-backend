@@ -49,9 +49,9 @@ config(); // Load .env early
       type: 'mysql',
       host: process.env.DB_HOST,
       port: parseInt(process.env.DB_PORT || '3306', 10),
-      username: process.env.DB_USER,
-      password: process.env.DB_PASS,
-      database: process.env.DB_NAME,
+      username: process.env.DB_USERNAME,  // <-- use DB_USERNAME
+      password: process.env.DB_PASSWORD,  // <-- use DB_PASSWORD
+      database: process.env.DB_NAME,  // <-- use DB_DATABASE
       autoLoadEntities: true,
       synchronize: true, // Changed to false to prevent data loss
     }),
@@ -99,4 +99,4 @@ config(); // Load .env early
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

@@ -1,0 +1,6 @@
+projectKey=maze_dakhle
+serverUrl=http://72.60.206.65:9000
+serverVersion=25.10.0.114319
+dashboardUrl=http://72.60.206.65:9000/dashboard?id=maze_dakhle
+ceTaskId=9e498476-ab49-4544-aaea-6593b0d00b5a
+ceTaskUrl=http://72.60.206.65:9000/api/ce/task?id=9e498476-ab49-4544-aaea-6593b0d00b5a

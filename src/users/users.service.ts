@@ -264,7 +264,7 @@ export class UsersService {
     user.emailVerificationToken = token;
     user.emailVerificationTokenExpiration = new Date(Date.now() + 3600 * 1000); // 1 hour expiry
     await this.userRepository.save(user);
-    const verificationLink = `https://maze-backend-production.up.railway.app/users/verify-email?token=${token}`;
+    const verificationLink = ` http://72.60.206.65:3000/users/verify-email?token=${token}`;
     // Send email (assuming mailService has sendEmailVerificationLink)
     await this.mailService.sendEmailVerificationLink(email, verificationLink);
   }
@@ -410,7 +410,7 @@ export class UsersService {
     user.resetToken = resetToken;
     user.resetTokenExpiration = new Date(Date.now() + 3600_000); // +1 hour
     await this.userRepository.save(user);
-    const frontUrl = 'https://maze-backend-production.up.railway.app';
+    const frontUrl = ' http://72.60.206.65:3000';
     const link = `${frontUrl}/reset-password?token=${resetToken}`;
     await this.mailService.sendPasswordResetEmail(user, link);
   }

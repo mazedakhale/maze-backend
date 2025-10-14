@@ -84,4 +84,14 @@ export class Document {
 
   @Column('json', { nullable: true })
   selected_document_names: string[] | null;
+
+  @Column({ 
+    type: 'enum', 
+    enum: ['Pending', 'Paid', 'Failed', 'Refunded'], 
+    default: 'Pending' 
+  })
+  payment_status: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  application_fee: number;
 }

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Document } from './entities/documents.entity';
 import { Express } from 'express';
 import { HybridStorageService } from '../hybridStorageSystem/hybrid-storage.service'; // Change from LocalStorageService
+import { WalletService } from '../wallet/wallet.service';
 import * as nodemailer from 'nodemailer';
 import { IsNull, Not } from "typeorm";
 
@@ -12,7 +13,8 @@ export class DocumentsService {
   constructor(
     @InjectRepository(Document)
     private readonly documentRepository: Repository<Document>,
-    private readonly hybridStorageService: HybridStorageService // Change from LocalStorageService
+    private readonly hybridStorageService: HybridStorageService, // Change from LocalStorageService
+    private readonly walletService: WalletService
   ) { }
 
   async getAllDocuments() {
@@ -572,6 +574,34 @@ Aaradhya Cyber`,
       // ✅ Check for remark (allow null)
       const remark = body.remark || null; // Extract the remark from the body
 
+      // ✅ Handle wallet payment if requested
+      let paymentStatus = 'Pending';
+      let applicationFee = 0;
+
+      if (body.wallet_payment === 'true' && body.application_fee) {
+        applicationFee = parseFloat(body.application_fee);
+        
+        if (isNaN(applicationFee) || applicationFee <= 0) {
+          throw new BadRequestException('Invalid application fee.');
+        }
+
+        // ✅ Check wallet balance and deduct fee
+        const deductionResult = await this.walletService.deductFromWallet(
+          userId, 
+          applicationFee, 
+          `Application fee for ${body.category_name} - ${body.subcategory_name}`
+        );
+
+        if (!deductionResult.success) {
+          throw new BadRequestException(
+            `Payment failed: ${deductionResult.message}`
+          );
+        }
+
+        paymentStatus = 'Paid';
+        console.log(`✅ Wallet deduction successful: ₹${applicationFee} deducted from user ${userId}`);
+      }
+
       // ✅ Generate a unique application_id based on subcategory
       const subcategoryName = body.subcategory_name || '';
       const applicationId = await this.generateApplicationId(subcategoryName);
@@ -595,6 +625,8 @@ Aaradhya Cyber`,
         remark: remark, // ✅ Add the remark field
         selected_document_names: selectedDocumentNames, // ✅ Add selected_document_names field
         rejection_reason: rejectionReason, // ✅ Add rejection_reason field
+        payment_status: paymentStatus, // ✅ Add payment status
+        application_fee: applicationFee, // ✅ Add application fee
       });
 
       // ✅ Save document to the database
@@ -630,6 +662,10 @@ Aaradhya Cyber`,
 Thank you for applying! Your application for the category "${document.category_name}" has been submitted successfully.
 
 Your Application ID: ${document.application_id}
+${document.application_fee ? `Application Fee: ₹${document.application_fee}` : ''}
+${document.payment_status ? `Payment Status: ${document.payment_status}` : ''}
+
+${document.payment_status === 'Paid' ? 'The application fee has been automatically deducted from your wallet.' : ''}
 
 We will review your application and get back to you shortly.
 

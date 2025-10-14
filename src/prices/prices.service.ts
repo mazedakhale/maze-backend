@@ -24,6 +24,23 @@ export class PricesService {
         return this.priceRepo.find();
     }
 
+    // Find prices by category_id
+    async findByCategoryId(categoryId: number): Promise<Price[]> {
+        return this.priceRepo.find({
+            where: { category_id: categoryId }
+        });
+    }
+
+    // Find price by category_id and subcategory_id
+    async findByCategoryAndSubcategory(categoryId: number, subcategoryId: number): Promise<Price | null> {
+        return this.priceRepo.findOne({
+            where: { 
+                category_id: categoryId,
+                subcategory_id: subcategoryId 
+            }
+        });
+    }
+
     // <-- updated to always return a Price or throw
     async findOne(id: number): Promise<Price> {
         const price = await this.priceRepo.findOneBy({ id });

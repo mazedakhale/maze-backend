@@ -213,8 +213,7 @@ export class WalletService {
         const recentTransactions = await this.txRepo
             .createQueryBuilder('tx')
             .leftJoinAndSelect('tx.wallet', 'wallet')
-            .leftJoin('users', 'user', 'user.user_id = wallet.userId')
-            .addSelect(['user.name', 'user.email'])
+            .leftJoinAndSelect('wallet.user', 'user')
             .orderBy('tx.createdAt', 'DESC')
             .take(10)
             .getMany();
@@ -231,27 +230,16 @@ export class WalletService {
     async getAllCustomerWallets() {
         return this.walletRepo
             .createQueryBuilder('wallet')
-            .leftJoin('users', 'user', 'user.user_id = wallet.userId')
-            .select([
-                'wallet.id',
-                'wallet.userId', 
-                'wallet.balance',
-                'wallet.totalBalance',
-                'wallet.createdAt',
-                'user.name as userName',
-                'user.email as userEmail',
-                'user.phone as userPhone'
-            ])
+            .leftJoinAndSelect('wallet.user', 'user')
             .orderBy('wallet.balance', 'DESC')
-            .getRawMany();
+            .getMany();
     }
 
     async getAllTransactions() {
         return this.txRepo
             .createQueryBuilder('tx')
             .leftJoinAndSelect('tx.wallet', 'wallet')
-            .leftJoin('users', 'user', 'user.user_id = wallet.userId')
-            .addSelect(['user.name', 'user.email'])
+            .leftJoinAndSelect('wallet.user', 'user')
             .orderBy('tx.createdAt', 'DESC')
             .getMany();
     }

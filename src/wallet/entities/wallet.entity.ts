@@ -1,6 +1,7 @@
 // src/wallet/entities/wallet.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { WalletTransaction } from './transaction.entity';
+import { User } from '../../users/entities/users.entity';
 
 @Entity({ name: 'wallet' })
 export class Wallet {
@@ -9,6 +10,10 @@ export class Wallet {
 
     @Column({ name: 'user_id', type: 'int' })
     userId: number;
+
+    @ManyToOne(() => User)
+    @JoinColumn({ name: 'user_id' })
+    user: User;
 
     @Column('decimal', { precision: 12, scale: 2, default: 0 })
     balance: number;

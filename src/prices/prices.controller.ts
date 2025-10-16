@@ -51,4 +51,15 @@ export class PricesController {
     remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
         return this.pricesService.remove(id);
     }
+
+    @Get('category/:categoryId')
+    async getPricesByCategoryId(@Param('categoryId', ParseIntPipe) categoryId: number) {
+        return this.pricesService.findByCategoryId(categoryId);
+    }
+
+    @Get('category/:categoryId/subcategory/:subcategoryId')
+    async getPriceByCategory(@Param('categoryId', ParseIntPipe) categoryId: number, 
+                            @Param('subcategoryId', ParseIntPipe) subcategoryId: number) {
+        return this.pricesService.findByCategoryAndSubcategory(categoryId, subcategoryId);
+    }
 }

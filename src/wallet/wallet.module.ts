@@ -7,13 +7,14 @@ import { WalletController } from './wallet.controller';
 import { Wallet } from './entities/wallet.entity';
 import { WalletTopupRequest } from './entities/topup-request.entity';
 import { WalletTransaction } from './entities/transaction.entity';
+import { User } from '../users/entities/users.entity';
 
 import { RazorpayModule } from '../razorpay/razorpay.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([Wallet, WalletTopupRequest, WalletTransaction]),
+        TypeOrmModule.forFeature([Wallet, WalletTopupRequest, WalletTransaction, User]),
         forwardRef(() => RazorpayModule),
         AuthModule,
     ],

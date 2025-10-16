@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { Wallet } from './entities/wallet.entity';
 import { WalletTopupRequest } from './entities/topup-request.entity';
 import { WalletTransaction } from './entities/transaction.entity';
+import { User } from '../users/entities/users.entity';
 import { RazorpayService } from '../razorpay/razorpay.service';
 import { getEnvVar } from '../utils/env';
 
@@ -22,6 +23,9 @@ export class WalletService {
 
         @InjectRepository(WalletTransaction)
         private readonly txRepo: Repository<WalletTransaction>,
+
+        @InjectRepository(User)
+        private readonly userRepo: Repository<User>,
 
         private readonly razorpay: RazorpayService,
     ) { }
@@ -132,5 +136,111 @@ export class WalletService {
         tx.paymentDetails = payload.paymentDetails;
         await this.txRepo.save(tx);
         console.log(`✅ Transaction ${tx.merchantOrderId} marked ${tx.status}`);
+    }
+
+    /** Check if user has sufficient balance */
+    async hasSufficientBalance(userId: number, requiredAmount: number): Promise<{ 
+        hasBalance: boolean; 
+        currentBalance: number; 
+        shortfall?: number; 
+    }> {
+        const currentBalance = await this.getBalance(userId);
+        const hasBalance = currentBalance >= requiredAmount;
+        
+        return {
+            hasBalance,
+            currentBalance,
+            shortfall: hasBalance ? undefined : requiredAmount - currentBalance
+        };
+    }
+
+    /** Deduct amount from wallet with transaction safety */
+    async deductFromWallet(userId: number, amount: number, description: string = 'Application fee deduction'): Promise<{ success: boolean; newBalance?: number; message?: string }> {
+        // Find or create wallet
+        let wallet = await this.walletRepo.findOne({ where: { userId } });
+        if (!wallet) {
+            wallet = this.walletRepo.create({ userId, balance: 0, totalBalance: 0 });
+            await this.walletRepo.save(wallet);
+        }
+
+        // Check if sufficient balance
+        if (wallet.balance < amount) {
+            return { 
+                success: false, 
+                message: `Insufficient balance. Available: ₹${wallet.balance}, Required: ₹${amount}` 
+            };
+        }
+
+        // Deduct amount
+        wallet.balance = wallet.balance - amount;
+        await this.walletRepo.save(wallet);
+
+        // Create debit transaction
+        await this.txRepo.save(
+            this.txRepo.create({
+                wallet,
+                type: 'DEBIT',
+                amount: amount,
+                status: 'completed',
+                merchantOrderId: null,
+                transactionId: null,
+                paymentDetails: { description }
+            })
+        );
+
+        console.log(`✅ Wallet deduction successful: ₹${amount} deducted from user ${userId}, new balance: ₹${wallet.balance}`);
+
+        return { 
+            success: true, 
+            newBalance: wallet.balance 
+        };
+    }
+
+    // Admin analytics methods
+    async getWalletAnalytics() {
+        const totalWallets = await this.walletRepo.count();
+        const walletsWithBalance = await this.walletRepo
+            .createQueryBuilder('wallet')
+            .where('wallet.balance > 0')
+            .getCount();
+        
+        const totalBalanceResult = await this.walletRepo
+            .createQueryBuilder('wallet')
+            .select('SUM(wallet.balance)', 'totalBalance')
+            .addSelect('SUM(wallet.totalBalance)', 'totalTopups')
+            .getRawOne();
+
+        const recentTransactions = await this.txRepo
+            .createQueryBuilder('tx')
+            .leftJoinAndSelect('tx.wallet', 'wallet')
+            .leftJoinAndSelect('wallet.user', 'user')
+            .orderBy('tx.createdAt', 'DESC')
+            .take(10)
+            .getMany();
+
+        return {
+            totalCustomers: totalWallets,
+            activeWallets: walletsWithBalance,
+            totalBalance: parseFloat(totalBalanceResult?.totalBalance || '0'),
+            totalTopups: parseFloat(totalBalanceResult?.totalTopups || '0'),
+            recentTransactions
+        };
+    }
+
+    async getAllCustomerWallets() {
+        return this.walletRepo
+            .createQueryBuilder('wallet')
+            .leftJoinAndSelect('wallet.user', 'user')
+            .orderBy('wallet.balance', 'DESC')
+            .getMany();
+    }
+
+    async getAllTransactions() {
+        return this.txRepo
+            .createQueryBuilder('tx')
+            .leftJoinAndSelect('tx.wallet', 'wallet')
+            .leftJoinAndSelect('wallet.user', 'user')
+            .orderBy('tx.createdAt', 'DESC')
+            .getMany();
     }
 }

@@ -124,7 +124,7 @@ export class GoogleDriveService {
       });
 
       this.logger.log(`✅ Upload Successful: File ID=${fileId}`);
-      return `https://drive.google.com/uc?id=${fileId}`;
+      return `https://drive.google.com/file/d/${fileId}/preview`;
     } catch (error) {
       this.logger.error('❌ Google Drive Upload Error:', error);
       throw new InternalServerErrorException(`Google Drive upload failed: ${error.message}`);

@@ -12,7 +12,7 @@ export class LocalStorageService {
 
   constructor(private configService: ConfigService) {
     this.uploadDir = path.join(process.cwd(), 'uploads');
-    this.baseUrl = this.configService.get('BASE_URL', 'https://maze-backend-production.up.railway.app');
+    this.baseUrl = this.configService.get('BASE_URL', ' http://72.60.206.65:3000');
     
     // Create uploads directory if it doesn't exist
     if (!fs.existsSync(this.uploadDir)) {

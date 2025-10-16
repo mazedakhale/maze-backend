@@ -42,4 +42,23 @@ export class WalletController {
         const balance = await this.svc.getBalance(userId);
         return { balance };
     }
+
+    // Admin endpoints for wallet analytics
+    @Get('admin/analytics')
+    async getWalletAnalytics(@Req() req: Request) {
+        // TODO: Add admin role check
+        return this.svc.getWalletAnalytics();
+    }
+
+    @Get('admin/customers')
+    async getAllCustomerWallets(@Req() req: Request) {
+        // TODO: Add admin role check
+        return this.svc.getAllCustomerWallets();
+    }
+
+    @Get('admin/transactions/all')
+    async getAllTransactions(@Req() req: Request) {
+        // TODO: Add admin role check
+        return this.svc.getAllTransactions();
+    }
 }

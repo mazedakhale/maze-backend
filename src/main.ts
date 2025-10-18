@@ -12,9 +12,9 @@ async function bootstrap(): Promise<void> {
     app.enableCors({
       origin: [
         'https://localhost:5173',
-        'https://euphonious-bombolone-63bf12.netlify.app',
         'http://72.60.206.65:5173',
-        'http://172.23.112.1:5173',  // add this local IP origin
+        'http://172.23.112.1:5173',  
+        'http://mazhedakhle.in'
       ],
       credentials: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',

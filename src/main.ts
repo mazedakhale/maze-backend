@@ -16,6 +16,7 @@ async function bootstrap(): Promise<void> {
         'https://mazhedakhle.in',
         'http://www.mazhedakhle.in',
         'https://www.mazhedakhle.in',
+        'https://localhost:5173',       // optional for local dev
         'http://localhost:5173',       // optional for local dev
         'http://72.60.206.65:5173',   // optional for local/testing
       ],

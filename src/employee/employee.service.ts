@@ -40,17 +40,23 @@ export class EmployeeService {
         userId: number,
     ): Promise<Employee[]> {
         try {
-            // Create documents for each subcategory
-            const documents = subcategoryIds.map(subcategoryId =>
-                this.employeeRepository.create({
-                    user_id: userId,
-                })
-            );
+            // Insert each assignment with ALL required fields
+            for (const subcategoryId of subcategoryIds) {
+                await this.employeeRepository.query(
+                    'INSERT INTO employees (category_id, subcategory_id, user_id) VALUES (?, ?, ?)',
+                    [categoryId, subcategoryId, userId]
+                );
+            }
 
-            // Save all documents at once
-            await this.employeeRepository.save(documents);
+            // Fetch the created records WITH relations
+            const createdEmployees = await this.employeeRepository.find({
+                where: { user_id: userId },
+                relations: ['category', 'subcategory'],
+                order: { created_at: 'DESC' },
+                take: subcategoryIds.length,
+            });
 
-            return documents;
+            return createdEmployees;
         } catch (error) {
             console.error('Error in create service:', error);
             throw new InternalServerErrorException('Failed to create documents.');
@@ -70,20 +76,33 @@ export class EmployeeService {
                 throw new NotFoundException(`Employee with ID ${id} not found`);
             }
 
-            // Delete existing employee(s)
-            await this.employeeRepository.delete({ id });
-
-            // Create documents for each subcategory
-            const documents = subcategoryIds.map(subcategoryId =>
-                this.employeeRepository.create({
-                    id,
-                })
+            // Delete all existing assignments for this user and category using raw SQL
+            await this.employeeRepository.query(
+                'DELETE FROM employees WHERE user_id = ? AND category_id = ?',
+                [userId, categoryId]
             );
 
-            // Save all documents at once
-            await this.employeeRepository.save(documents);
+            // Insert new assignments with ALL required fields using raw SQL
+            for (const subcategoryId of subcategoryIds) {
+                await this.employeeRepository.query(
+                    'INSERT INTO employees (category_id, subcategory_id, user_id) VALUES (?, ?, ?)',
+                    [categoryId, subcategoryId, userId]
+                );
+            }
 
-            return documents;
+            // Fetch the updated records using raw SQL to get IDs, then load with relations
+            const updatedIds = await this.employeeRepository.query(
+                'SELECT id FROM employees WHERE user_id = ? AND category_id = ? ORDER BY created_at DESC',
+                [userId, categoryId]
+            );
+
+            // Fetch full employee records with relations
+            const updatedEmployees = await this.employeeRepository.find({
+                where: updatedIds.map(row => ({ id: row.id })),
+                relations: ['category', 'subcategory'],
+            });
+
+            return updatedEmployees;
         } catch (error) {
             console.error('Error in update service:', error);
             throw new InternalServerErrorException('Failed to update employee.');

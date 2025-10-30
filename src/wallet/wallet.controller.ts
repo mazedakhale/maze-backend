@@ -40,7 +40,9 @@ export class WalletController {
     async getBalance(@Req() req: Request) {
         const userId = (req.user as any).userId;
         const balance = await this.svc.getBalance(userId);
-        return { balance };
+        const transactions = await this.svc.getTransactions(userId);
+        console.log(`💰 Wallet check - User ${userId}: balance=₹${balance}, transactions=${transactions.length}`);
+        return { balance, userId, transactionCount: transactions.length };
     }
 
     // Admin endpoints for wallet analytics

@@ -598,6 +598,20 @@ Aaradhya Cyber`,
           );
         }
 
+        // ✅ Credit admin wallet with the application fee
+        const adminCreditResult = await this.walletService.creditAdminWallet(
+          applicationFee,
+          `Application fee from user ${userId} for ${body.category_name} - ${body.subcategory_name}`
+        );
+
+        if (adminCreditResult.success) {
+          console.log(`✅ Admin wallet credited with ₹${applicationFee} from application submission`);
+        } else {
+          console.error(`❌ Failed to credit admin wallet: ${adminCreditResult.message}`);
+          // Note: We don't throw error here to avoid blocking document creation
+          // The user payment was already deducted, so we log the error and continue
+        }
+
         paymentStatus = 'Paid';
         console.log(`✅ Wallet deduction successful: ₹${applicationFee} deducted from user ${userId}`);
       }

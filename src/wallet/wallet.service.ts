@@ -8,7 +8,7 @@ import { randomUUID } from 'crypto';
 import { Wallet } from './entities/wallet.entity';
 import { WalletTopupRequest } from './entities/topup-request.entity';
 import { WalletTransaction } from './entities/transaction.entity';
-import { User } from '../users/entities/users.entity';
+import { User, UserRole } from '../users/entities/users.entity';
 import { RazorpayService } from '../razorpay/razorpay.service';
 import { getEnvVar } from '../utils/env';
 
@@ -163,16 +163,21 @@ export class WalletService {
             await this.walletRepo.save(wallet);
         }
 
+        // Convert balance to number for proper comparison
+        const currentBalance = Number(wallet.balance);
+        
+        console.log(`🔍 Deduction check - User ${userId}: Current balance: ₹${currentBalance}, Required: ₹${amount}`);
+
         // Check if sufficient balance
-        if (wallet.balance < amount) {
+        if (currentBalance < amount) {
             return { 
                 success: false, 
-                message: `Insufficient balance. Available: ₹${wallet.balance}, Required: ₹${amount}` 
+                message: `Insufficient balance. Available: ₹${currentBalance.toFixed(2)}, Required: ₹${amount.toFixed(2)}` 
             };
         }
 
         // Deduct amount
-        wallet.balance = wallet.balance - amount;
+        wallet.balance = currentBalance - amount;
         await this.walletRepo.save(wallet);
 
         // Create debit transaction
@@ -192,8 +197,115 @@ export class WalletService {
 
         return { 
             success: true, 
-            newBalance: wallet.balance 
+            newBalance: Number(wallet.balance)
         };
+    }
+
+    /** Credit amount to admin wallet (for application fees) */
+    async creditAdminWallet(amount: number, description: string = 'Application fee received'): Promise<{ success: boolean; newBalance?: number; message?: string }> {
+        try {
+            // Find admin user (role = 'Admin')
+            const adminUser = await this.userRepo.findOne({ where: { role: UserRole.ADMIN } });
+            
+            if (!adminUser) {
+                console.error('❌ Admin user not found');
+                return {
+                    success: false,
+                    message: 'Admin user not found'
+                };
+            }
+
+            // Find or create admin wallet
+            let adminWallet = await this.walletRepo.findOne({ where: { userId: adminUser.user_id } });
+            if (!adminWallet) {
+                adminWallet = this.walletRepo.create({ 
+                    userId: adminUser.user_id, 
+                    balance: 0, 
+                    totalBalance: 0 
+                });
+                await this.walletRepo.save(adminWallet);
+                console.log(`✅ Created new wallet for admin user ${adminUser.user_id}`);
+            }
+
+            // Credit amount to admin wallet
+            adminWallet.balance = Number(adminWallet.balance) + amount;
+            adminWallet.totalBalance = Number(adminWallet.totalBalance) + amount;
+            await this.walletRepo.save(adminWallet);
+
+            // Create credit transaction
+            await this.txRepo.save(
+                this.txRepo.create({
+                    wallet: adminWallet,
+                    type: 'CREDIT',
+                    amount: amount,
+                    status: 'completed',
+                    merchantOrderId: null,
+                    transactionId: null,
+                    paymentDetails: { description }
+                })
+            );
+
+            console.log(`✅ Admin wallet credited: ₹${amount} added to admin wallet, new balance: ₹${adminWallet.balance}`);
+
+            return {
+                success: true,
+                newBalance: adminWallet.balance
+            };
+        } catch (error) {
+            console.error('❌ Error crediting admin wallet:', error);
+            return {
+                success: false,
+                message: 'Failed to credit admin wallet'
+            };
+        }
+    }
+
+    /** Credit amount to distributor wallet (for payment requests) */
+    async creditDistributorWallet(distributorId: number, amount: number, description: string = 'Payment received'): Promise<{ success: boolean; newBalance?: number; message?: string }> {
+        try {
+            // Find or create distributor wallet
+            let distributorWallet = await this.walletRepo.findOne({ where: { userId: distributorId } });
+            if (!distributorWallet) {
+                distributorWallet = this.walletRepo.create({ 
+                    userId: distributorId, 
+                    balance: 0, 
+                    totalBalance: 0 
+                });
+                await this.walletRepo.save(distributorWallet);
+                console.log(`✅ Created new wallet for distributor ${distributorId}`);
+            }
+
+            // Credit amount to distributor wallet
+            distributorWallet.balance = Number(distributorWallet.balance) + amount;
+            distributorWallet.totalBalance = Number(distributorWallet.totalBalance) + amount;
+            await this.walletRepo.save(distributorWallet);
+
+            // Create credit transaction
+            await this.txRepo.save(
+                this.txRepo.create({
+                    wallet: distributorWallet,
+                    type: 'CREDIT',
+                    amount: amount,
+                    status: 'completed',
+                    merchantOrderId: null,
+                    transactionId: null,
+                    paymentDetails: { description }
+                })
+            );
+
+            console.log(`✅ Distributor wallet credited: ₹${amount} added to distributor ${distributorId}, new balance: ₹${distributorWallet.balance}`);
+
+            return {
+                success: true,
+                newBalance: Number(distributorWallet.balance)
+            };
+        } catch (error) {
+            console.error('❌ Error crediting distributor wallet:', error);
+            return {
+                success: false,
+                message: 'Failed to credit distributor wallet'
+            };
+        }
     }
 
     // Admin analytics methods

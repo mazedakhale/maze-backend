@@ -36,6 +36,7 @@ import { SmsModule } from './sms/sms.module';
 import { HeaderModule } from './header/header.module';
 import { ContactInfoModule } from './contact-info/contact-info.module';
 import { AuthModule } from './auth/auth.module';
+import { PaymentRequestsModule } from './payment-requests/payment-requests.module';
 
 config(); // Load .env early
 
@@ -95,6 +96,7 @@ config(); // Load .env early
     NewsModule,
     PrivacyPolicyModule,
     AuthModule,
+    PaymentRequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

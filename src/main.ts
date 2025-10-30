@@ -9,18 +9,22 @@ async function bootstrap(): Promise<void> {
   try {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+    // Enable CORS
     app.enableCors({
       origin: [
-        'https://localhost:5173',
-        'https://euphonious-bombolone-63bf12.netlify.app',
-        'http://72.60.206.65:5173',
-        'http://172.23.112.1:5173',  // add this local IP origin
+        'http://mazhedakhle.in',
+        'https://mazhedakhle.in',
+        'http://www.mazhedakhle.in',
+        'https://www.mazhedakhle.in',
+        'http://localhost:5173',       // optional for local dev
+        'http://72.60.206.65:5173',   // optional for local/testing
       ],
       credentials: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: 'Content-Type, Authorization',
     });
 
+    // Validation
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -28,11 +32,12 @@ async function bootstrap(): Promise<void> {
       }),
     );
 
+    // Serve static assets
     app.useStaticAssets(join(__dirname, '..', 'uploads'), {
       prefix: '/uploads/',
     });
 
-    // Swagger configuration start
+    // Swagger configuration
     const config = new DocumentBuilder()
       .setTitle('Your API Title')
       .setDescription('API description')
@@ -44,13 +49,12 @@ async function bootstrap(): Promise<void> {
           bearerFormat: 'JWT',
           description: 'Enter JWT token to authorize requests',
         },
-        'jwt-auth', // This name can be anything you want
+        'jwt-auth',
       )
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api', app, document);
-    // Swagger configuration end
 
     const port = parseInt(process.env.PORT ?? '3000', 10);
     const host = process.env.HOST || '0.0.0.0';

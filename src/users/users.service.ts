@@ -217,7 +217,7 @@ export class UsersService {
 
       /*
       try {
-        const verificationLink = `http://localhost:3000/users/verify-email?token=${token}`;
+        const verificationLink = `http://72.60.206.65:3000/users/verify-email?token=${token}`;
         this.logger.log(`Sending email verification link to ${savedUser.email}`);
         await this.mailService.sendEmailVerificationLink(savedUser.email, verificationLink);
         this.logger.log(`Email verification link sent to ${savedUser.email}`);

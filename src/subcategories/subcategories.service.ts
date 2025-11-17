@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Subcategory } from './entities/subcategories.entity';
 import { Category } from '../categories/entities/categories.entity';
+import { DeletionCodeService } from '../common/deletion-code.service';
 
 @Injectable()
 export class SubcategoriesService {
@@ -12,6 +13,8 @@ export class SubcategoriesService {
     
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+
+    private readonly deletionCodeService: DeletionCodeService,
   ) {}
 
   async create(categoryId: number, subcategoryName: string): Promise<Subcategory> {
@@ -58,7 +61,12 @@ export class SubcategoriesService {
   }
   
 
-  async remove(subcategoryId: number): Promise<{ message: string }> {
+  async remove(subcategoryId: number, code?: string): Promise<{ message: string }> {
+    // Verify deletion code if provided
+    if (code) {
+      await this.deletionCodeService.verifyStaticCode(code);
+    }
+
     const subcategory = await this.findOne(subcategoryId);
     await this.subcategoryRepository.remove(subcategory);
     return { message: 'Subcategory deleted successfully' };

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { FeildName } from './entities/feild_names.entity';
 import { Category } from 'src/categories/entities/categories.entity';
 import { Subcategory } from 'src/subcategories/entities/subcategories.entity';
+import { DeletionCodeService } from '../common/deletion-code.service';
 
 @Injectable()
 export class FeildNamesService {
@@ -19,6 +20,8 @@ export class FeildNamesService {
 
         @InjectRepository(Subcategory)
         private readonly subcategoryRepository: Repository<Subcategory>,
+
+        private readonly deletionCodeService: DeletionCodeService,
     ) { }
 
     async create(categoryId: number, subcategoryId: number, documentFeilds: any): Promise<FeildName> {
@@ -96,7 +99,12 @@ export class FeildNamesService {
         return fieldNames;
     }
 
-    async remove(id: number): Promise<void> {
+    async remove(id: number, code?: string): Promise<void> {
+        // Verify deletion code if provided
+        if (code) {
+            await this.deletionCodeService.verifyStaticCode(code);
+        }
+
         const feildName = await this.feildNamesRepository.findOne({ where: { id } });
 
         if (!feildName) {

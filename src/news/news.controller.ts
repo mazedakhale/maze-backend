@@ -12,8 +12,8 @@ import {
 import { NewsService } from './news.service';
 import { News } from './news.entity';
 
-class CreateNewsDto { description: string; }
-class UpdateNewsDto { description: string; }
+interface CreateNewsDto { description: string; }
+interface UpdateNewsDto { description: string; }
 
 @Controller('news')
 export class NewsController {

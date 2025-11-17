@@ -34,7 +34,7 @@ export class SubcategoriesController {
   }
 
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) subcategoryId: number) {
-    return this.subcategoriesService.remove(subcategoryId);
+  async remove(@Param('id', ParseIntPipe) subcategoryId: number, @Body('code') code: string) {
+    return this.subcategoriesService.remove(subcategoryId, code);
   }
 }

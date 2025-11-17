@@ -1,4 +1,3 @@
-// src/news/news.controller.ts
 import {
     Controller,
     Get,
@@ -12,15 +11,15 @@ import {
 import { HeaderService } from './header.service';
 import { Header } from './header.entity';
 
-class CreateNewsDto { description: string; }
-class UpdateNewsDto { description: string; }
+interface CreateHeaderDto { description: string; }
+interface UpdateHeaderDto { description: string; }
 
 @Controller('header')
 export class HeaderController {
     constructor(private readonly headerService: HeaderService) { }
 
     @Post()
-    create(@Body() dto: CreateNewsDto): Promise<Header> {
+    create(@Body() dto: CreateHeaderDto): Promise<Header> {
         return this.headerService.create(dto);
     }
 
@@ -37,7 +36,7 @@ export class HeaderController {
     @Put(':id')
     update(
         @Param('id', ParseIntPipe) id: number,
-        @Body() dto: UpdateNewsDto,
+        @Body() dto: UpdateHeaderDto,
     ): Promise<Header> {
         return this.headerService.update(id, dto);
     }

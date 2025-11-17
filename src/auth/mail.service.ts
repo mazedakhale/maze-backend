@@ -184,4 +184,51 @@ export class MailService {
     }
   }
 
+  // Send deletion code email
+  async sendDeletionCode(email: string, code: string, itemName: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: email,
+        subject: 'Deletion Confirmation Code - Maze Dakhale',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+            <h2 style="color: #f58a3b; text-align: center;">🔒 Deletion Confirmation Code</h2>
+            <p>Dear Admin,</p>
+            <p>You have requested to delete the subcategory: <strong>${itemName}</strong></p>
+            <p>Your deletion confirmation code is:</p>
+            <div style="background-color: #f0f0f0; padding: 20px; text-align: center; border-radius: 5px; margin: 20px 0;">
+              <h1 style="color: #f58a3b; font-size: 36px; margin: 0; letter-spacing: 5px;">${code}</h1>
+            </div>
+            <p><strong>⏰ This code will expire in 5 minutes.</strong></p>
+            <p style="color: #666; font-size: 14px;">If you did not request this deletion, please ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+            <p style="color: #999; font-size: 12px; text-align: center;">This is an automated email from Maze Dakhale. Please do not reply.</p>
+          </div>
+        `,
+        text: `Deletion Confirmation Code: ${code}\n\nYou have requested to delete the subcategory: ${itemName}\n\nThis code will expire in 5 minutes.\n\nIf you did not request this deletion, please ignore this email.`,
+      });
+      this.logger.log(`Deletion code sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send deletion code to ${email}`, error);
+      throw error;
+    }
+  }
+
+  // Generic method to send custom emails
+  async sendEmail(to: string, subject: string, htmlContent: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to,
+        subject,
+        html: htmlContent,
+      });
+      this.logger.log(`Email sent to ${to} - Subject: ${subject}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email to ${to}`, error);
+      throw error;
+    }
+  }
+
 }

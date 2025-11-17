@@ -48,8 +48,8 @@ export class PricesController {
 
 
     @Delete(':id')
-    remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-        return this.pricesService.remove(id);
+    remove(@Param('id', ParseIntPipe) id: number, @Body('code') code: string): Promise<void> {
+        return this.pricesService.remove(id, code);
     }
 
     @Get('category/:categoryId')

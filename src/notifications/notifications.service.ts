@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './entities/notifications.entity';
+import { DeletionCodeService } from '../common/deletion-code.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private notificationRepo: Repository<Notification>,
+    private readonly deletionCodeService: DeletionCodeService,
   ) {}
 
   // Create Notification
@@ -58,7 +60,12 @@ export class NotificationsService {
 
 
   // Delete Notification
-  async deleteNotification(id: number): Promise<void> {
+  async deleteNotification(id: number, code?: string): Promise<void> {
+    // Verify deletion code if provided
+    if (code) {
+      await this.deletionCodeService.verifyStaticCode(code);
+    }
+
     const result = await this.notificationRepo.delete(id);
     if (result.affected === 0) throw new NotFoundException('Notification not found');
   }

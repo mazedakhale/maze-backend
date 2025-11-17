@@ -3,12 +3,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Price } from './entities/price.entity';
+import { DeletionCodeService } from '../common/deletion-code.service';
 
 @Injectable()
 export class PricesService {
     constructor(
         @InjectRepository(Price)
         private readonly priceRepo: Repository<Price>,
+        private readonly deletionCodeService: DeletionCodeService,
     ) { }
 
     create(data: {
@@ -66,7 +68,12 @@ export class PricesService {
         return this.priceRepo.save(price);
     }
 
-    async remove(id: number): Promise<void> {
+    async remove(id: number, code?: string): Promise<void> {
+        // Verify deletion code if provided
+        if (code) {
+            await this.deletionCodeService.verifyStaticCode(code);
+        }
+
         const result = await this.priceRepo.delete(id);
         if (result.affected === 0) {
             throw new NotFoundException(`Price with id ${id} not found`);

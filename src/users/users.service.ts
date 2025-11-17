@@ -423,7 +423,7 @@ export class UsersService {
     user.resetToken = resetToken;
     user.resetTokenExpiration = new Date(Date.now() + 3600_000); // +1 hour
     await this.userRepository.save(user);
-    const frontUrl = ' http://72.60.206.65:3000';
+    const frontUrl = 'https://mazedakhale.in';
     const link = `${frontUrl}/reset-password?token=${resetToken}`;
     await this.mailService.sendPasswordResetEmail(user, link);
   }

@@ -37,11 +37,14 @@ import { HeaderModule } from './header/header.module';
 import { ContactInfoModule } from './contact-info/contact-info.module';
 import { AuthModule } from './auth/auth.module';
 import { PaymentRequestsModule } from './payment-requests/payment-requests.module';
+import { ImportantDocumentsModule } from './important-documents/important-documents.module';
+import { CommonModule } from './common/common.module';
 
 config(); // Load .env early
 
 @Module({
   imports: [
+    CommonModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -97,6 +100,7 @@ config(); // Load .env early
     PrivacyPolicyModule,
     AuthModule,
     PaymentRequestsModule,
+    ImportantDocumentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

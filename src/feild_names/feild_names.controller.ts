@@ -48,8 +48,8 @@ export class FeildNamesController {
     
 
     @Delete(':id')
-    async remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
-        await this.feildNamesService.remove(id);
+    async remove(@Param('id', ParseIntPipe) id: number, @Body('code') code: string): Promise<{ message: string }> {
+        await this.feildNamesService.remove(id, code);
         return { message: `FeildName with ID ${id} successfully deleted` };
     }
 }

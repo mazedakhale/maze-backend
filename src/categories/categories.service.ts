@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from './entities/categories.entity';
+import { DeletionCodeService } from '../common/deletion-code.service';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    private readonly deletionCodeService: DeletionCodeService,
   ) {}
 
   async findAll(): Promise<Category[]> {
@@ -33,7 +35,12 @@ export class CategoriesService {
     return await this.categoryRepository.save(category);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, code?: string): Promise<void> {
+    // Verify deletion code if provided
+    if (code) {
+      await this.deletionCodeService.verifyStaticCode(code);
+    }
+
     const result = await this.categoryRepository.delete(id);
     if (result.affected === 0) {
       throw new NotFoundException(`Category with ID ${id} not found`);

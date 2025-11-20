@@ -155,7 +155,9 @@ export class GoogleDriveService {
       await this.drive.files.delete({ fileId });
       this.logger.log(`✅ Deletion Successful: File ID=${fileId}`);
     } catch (error) {
-      this.logger.error('❌ Google Drive Delete Error:', error);
+      // File might already be deleted or doesn't exist - just log warning and continue
+      this.logger.warn(`⚠️ Could not delete file from Google Drive (might already be deleted): ${error.message}`);
+      // Don't re-throw - allow the update to continue
     }
   }
 

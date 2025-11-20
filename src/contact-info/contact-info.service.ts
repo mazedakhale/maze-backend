@@ -11,8 +11,10 @@ export class ContactInfoService {
     ) { }
 
     // Create a new contact info record
-    create(contactInfo: ContactInfo): Promise<ContactInfo> {
+    create(contactInfo: Partial<ContactInfo>): Promise<ContactInfo> {
+        console.log('🔨 Creating contact info with data:', contactInfo);
         const newContactInfo = this.contactInfoRepository.create(contactInfo);
+        console.log('📝 Created entity:', newContactInfo);
         return this.contactInfoRepository.save(newContactInfo);
     }
 
@@ -27,13 +29,27 @@ export class ContactInfoService {
     }
 
     // Update a specific contact info record
-    async update(id: number, contactInfo: ContactInfo): Promise<ContactInfo | null> {
+    async update(id: number, contactInfo: Partial<ContactInfo>): Promise<ContactInfo | null> {
+        console.log('🔄 Updating contact info ID:', id);
+        console.log('📦 Update payload:', contactInfo);
+        
         const existingContactInfo = await this.findOne(id);
         if (!existingContactInfo) {
-            return null;  // Return null if not found
+            console.log('❌ Contact info not found with ID:', id);
+            return null;
         }
+        
+        console.log('📋 Existing data:', existingContactInfo);
+        
+        // Merge existing data with updates
+        const updatedData = { ...existingContactInfo, ...contactInfo };
+        console.log('🔀 Merged data:', updatedData);
+        
         await this.contactInfoRepository.update(id, contactInfo);
-        return this.findOne(id); // Fetch the updated record
+        const result = await this.findOne(id);
+        
+        console.log('✅ Update complete. New data:', result);
+        return result;
     }
 
     // Delete a specific contact info record

@@ -94,10 +94,21 @@ export class ImageService {
         description?: string,
         youtubeLink?: string,
         youtubeDescription?: string,
-        storageType: 's3' | 'drive' = 's3'
+        storageType: 's3' | 'drive' = 'drive'  // Changed default to 'drive'
     ): Promise<Image> {
+        console.log('🔄 updateImage called with:', {
+            id,
+            hasFile: !!file,
+            description,
+            youtubeLink,
+            youtubeDescription,
+            storageType
+        });
+
         try {
             const image = await this.imageRepository.findOneBy({ id });
+            console.log('📦 Found image:', image ? { id: image.id, imageUrl: image.imageUrl } : 'NOT FOUND');
+            
             if (!image) throw new NotFoundException(`Image ${id} not found`);
             
             if (youtubeLink && !this.isValidYouTubeUrl(youtubeLink)) {
@@ -105,6 +116,7 @@ export class ImageService {
             }
 
             if (file) {
+                console.log('📁 Processing file upload...');
                 // Add file size check
                 const maxSize = 10 * 1024 * 1024; // 10MB
                 if (file.size > maxSize) {
@@ -112,37 +124,57 @@ export class ImageService {
                 }
 
                 const folder = youtubeLink ?? image.youtubeLink ? 'youtube' : 'general';
+                console.log('📂 Upload folder:', folder);
                 
                 // Delete old file from appropriate service
                 if (image.imageUrl) {
-                    if (this.isGoogleDriveUrl(image.imageUrl)) {
-                        await this.googleDriveService.deleteFile(image.imageUrl);
-                    } else {
-                        await this.s3Service.deleteFile(image.imageUrl);
+                    console.log('🗑️ Deleting old file:', image.imageUrl);
+                    try {
+                        if (this.isGoogleDriveUrl(image.imageUrl)) {
+                            await this.googleDriveService.deleteFile(image.imageUrl);
+                        } else {
+                            await this.s3Service.deleteFile(image.imageUrl);
+                        }
+                    } catch (deleteError) {
+                        console.warn('⚠️ Failed to delete old file:', deleteError.message);
                     }
                 }
 
                 // Upload new file to chosen service
+                console.log('☁️ Uploading to:', storageType);
                 if (storageType === 'drive') {
                     image.imageUrl = await this.googleDriveService.uploadFile(file, folder);
                 } else {
                     image.imageUrl = await this.s3Service.uploadFile(file, folder);
                 }
+                console.log('✅ New image URL:', image.imageUrl);
             }
+
+            console.log('💾 Updating fields:', {
+                description: description ?? image.description,
+                youtubeLink: youtubeLink ?? image.youtubeLink,
+                youtubeDescription: youtubeDescription ?? image.youtubeDescription
+            });
 
             image.description = description ?? image.description;
             image.youtubeLink = youtubeLink ?? image.youtubeLink;
             image.youtubeDescription = youtubeDescription ?? image.youtubeDescription;
             
-            return await this.imageRepository.save(image);
+            const saved = await this.imageRepository.save(image);
+            console.log('✅ Image saved successfully:', saved.id);
+            return saved;
         } catch (error) {
+            console.error(`❌ Error in updateImage for ID ${id}:`, error);
+            console.error('Error stack:', error.stack);
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            
             if (
                 error instanceof NotFoundException ||
                 error instanceof BadRequestException
             )
                 throw error;
-            console.error(`Error updating image ${id}:`, error);
-            throw new InternalServerErrorException('Failed to update image');
+            throw new InternalServerErrorException(`Failed to update image: ${error.message}`);
         }
     }
 

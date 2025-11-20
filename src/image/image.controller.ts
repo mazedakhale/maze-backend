@@ -32,16 +32,27 @@ export class ImageController {
     @UseInterceptors(FileInterceptor('image'))
     async create(
         @UploadedFile() file: Express.Multer.File,
-        @Body() body: CreateImageDto
+        @Body() body: any
     ) {
+        console.log('📥 Image upload request received');
+        console.log('📁 File:', file ? { name: file.originalname, size: file.size, mimetype: file.mimetype } : 'No file');
+        console.log('📦 Body:', body);
+        console.log('📦 Body keys:', Object.keys(body || {}));
+        console.log('📦 Description:', body.description);
+        console.log('📦 YouTube Link:', body.youtubeLink);
+        console.log('📦 YouTube Description:', body.youtubeDescription);
+        
         try {
+            // Use Google Drive as default storage
             return await this.imageService.createImage(
                 file,
                 body.description,
                 body.youtubeLink,
-                body.youtubeDescription
+                body.youtubeDescription,
+                'drive'  // Force Google Drive storage
             );
         } catch (error) {
+            console.error('❌ Error creating image:', error);
             if (
                 error instanceof BadRequestException ||
                 error instanceof NotFoundException
@@ -78,17 +89,25 @@ export class ImageController {
     async update(
         @Param('id', ParseIntPipe) id: number,
         @UploadedFile() file: Express.Multer.File,
-        @Body() body: CreateImageDto
+        @Body() body: any
     ) {
+        console.log('📥 Image update request for ID:', id);
+        console.log('📁 File:', file ? { name: file.originalname, size: file.size } : 'No new file');
+        console.log('📦 Body:', body);
+        console.log('📦 Body keys:', Object.keys(body || {}));
+        
         try {
+            // Use Google Drive as default storage
             return await this.imageService.updateImage(
                 id,
                 file,
                 body.description,
                 body.youtubeLink,
-                body.youtubeDescription
+                body.youtubeDescription,
+                'drive'  // Force Google Drive storage
             );
         } catch (error) {
+            console.error('❌ Error updating image:', error);
             if (
                 error instanceof BadRequestException ||
                 error instanceof NotFoundException

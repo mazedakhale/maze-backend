@@ -64,8 +64,9 @@ export class S3Service {
             await this.s3.deleteObject(params).promise();
             console.log(`✅ Deletion Successful: ${fileKey}`);
         } catch (error) {
-            console.error('❌ S3 Delete Error:', error);
-            throw new InternalServerErrorException('S3 deletion failed');
+            // File might already be deleted or doesn't exist - just log warning and continue
+            console.warn(`⚠️ Could not delete file from S3 (might already be deleted): ${error.message}`);
+            // Don't throw - allow the update to continue
         }
     }
 

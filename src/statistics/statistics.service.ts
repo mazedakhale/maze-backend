@@ -158,8 +158,8 @@ export class StatisticsService {
      * Optimized using `Promise.all` for concurrent queries.
      */
     async getCounts() {
-        const [userCount, distributorCount, documentCount, categoryCount, subcategoryCount] = await Promise.all([
-            this.userRepository.count(),
+        const [customerCount, distributorCount, documentCount, categoryCount, subcategoryCount] = await Promise.all([
+            this.userRepository.count({ where: { role: UserRole.CUSTOMER } }),
             this.userRepository.count({ where: { role: UserRole.DISTRIBUTOR } }),
             this.documentRepository.count(),
             this.categoryRepository.count(),

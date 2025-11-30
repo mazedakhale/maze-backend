@@ -18,6 +18,7 @@ import { ConfigService } from '@nestjs/config';
 import { MailService } from '../auth/mail.service';
 import { randomBytes } from 'crypto';
 import { Express } from 'express';
+import { DeletionCodeService } from '../common/deletion-code.service';
 
 @Injectable()
 export class UsersService {
@@ -37,6 +38,8 @@ export class UsersService {
     private readonly hybridStorageService: HybridStorageService, // This should now work
 
     private readonly mailService: MailService,
+
+    private readonly deletionCodeService: DeletionCodeService,
   ) { }
 
   private async hashPassword(password: string): Promise<string> {
@@ -124,7 +127,14 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  async deleteUser(userId: number): Promise<string> {
+  async deleteUser(userId: number, code?: string): Promise<string> {
+    // Verify deletion code if provided
+    if (code) {
+      await this.deletionCodeService.verifyStaticCode(code);
+    } else {
+      throw new BadRequestException('Deletion code is required');
+    }
+
     const result = await this.userRepository.delete(userId);
     if (result.affected === 0) throw new NotFoundException('User not found');
     return 'User deleted successfully';

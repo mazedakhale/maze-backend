@@ -189,9 +189,12 @@ export class UsersController {
     }
   }
 
-  @Delete('delete/:id')
-  deleteUser(@Param('id', ParseIntPipe) userId: number) {
-    return this.usersService.deleteUser(userId);
+  @Delete(':id')
+  async deleteUser(
+    @Param('id', ParseIntPipe) userId: number, 
+    @Body('code') code?: string
+  ) {
+    return this.usersService.deleteUser(userId, code);
   }
 
   @Get('edit/:user_id')

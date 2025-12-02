@@ -228,7 +228,7 @@ export class StatisticsService {
 
         return {
             totalCounts: {
-                users: userCount,
+                customers: customerCount,
                 distributors: distributorCount,
                 documents: documentCount,
                 categories: categoryCount,

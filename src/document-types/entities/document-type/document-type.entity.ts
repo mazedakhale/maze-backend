@@ -7,4 +7,7 @@ export class DocumentType {
 
   @Column({ type: 'varchar', length: 255, unique: true })
   doc_type_name: string;
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
 }

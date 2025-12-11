@@ -15,6 +15,15 @@ export class FeildNamesController {
         return await this.feildNamesService.create(categoryId, subcategoryId, documentFeilds);
     }
 
+    @Post('bulk')
+    async createBulk(
+        @Body('category_id', ParseIntPipe) categoryId: number,
+        @Body('subcategory_id', ParseIntPipe) subcategoryId: number,
+        @Body('document_fields') documentFields: string[]
+    ): Promise<{ created: FeildName[], count: number }> {
+        return await this.feildNamesService.createBulk(categoryId, subcategoryId, documentFields);
+    }
+
 
 
 

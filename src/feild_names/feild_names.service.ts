@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { FeildName } from './entities/feild_names.entity';
 import { Category } from 'src/categories/entities/categories.entity';
 import { Subcategory } from 'src/subcategories/entities/subcategories.entity';
@@ -55,6 +55,74 @@ export class FeildNamesService {
         } catch (error) {
             console.error('Error in create method:', error.message);
             throw new InternalServerErrorException('Failed to create field name');
+        }
+    }
+
+    async createBulk(categoryId: number, subcategoryId: number, documentFields: string[]): Promise<{ created: FeildName[], count: number }> {
+        try {
+            // Validate input
+            if (!Array.isArray(documentFields) || documentFields.length === 0) {
+                throw new BadRequestException('document_fields must be a non-empty array');
+            }
+
+            // Filter and validate each field
+            const validFields = documentFields
+                .map(field => field?.trim())
+                .filter(field => field && field.length > 0);
+
+            if (validFields.length === 0) {
+                throw new BadRequestException('At least one valid field name is required');
+            }
+
+            // Fetch Category & Subcategory
+            const category = await this.categoryRepository.findOne({ where: { category_id: categoryId } });
+            const subcategory = await this.subcategoryRepository.findOne({ where: { subcategory_id: subcategoryId } });
+
+            if (!category) throw new NotFoundException('Category not found');
+            if (!subcategory) throw new NotFoundException('Subcategory not found');
+
+            // Check for duplicates in the request
+            const uniqueFields = [...new Set(validFields)];
+            if (uniqueFields.length !== validFields.length) {
+                throw new BadRequestException('Duplicate field names found in the request');
+            }
+
+            // Check for existing field names
+            const existingFields = await this.feildNamesRepository.find({
+                where: {
+                    category: { category_id: categoryId },
+                    subcategory: { subcategory_id: subcategoryId },
+                    document_fields: In(validFields)
+                }
+            });
+
+            if (existingFields.length > 0) {
+                const existingFieldNames = existingFields.map(f => f.document_fields).join(', ');
+                throw new BadRequestException(`These field names already exist: ${existingFieldNames}`);
+            }
+
+            // Create all field entities
+            const fieldEntities = validFields.map(fieldName => 
+                this.feildNamesRepository.create({
+                    category,
+                    subcategory,
+                    document_fields: fieldName
+                })
+            );
+
+            // Save all entities
+            const savedFields = await this.feildNamesRepository.save(fieldEntities);
+
+            return {
+                created: savedFields,
+                count: savedFields.length
+            };
+        } catch (error) {
+            console.error('Error creating bulk field names:', error);
+            if (error instanceof BadRequestException || error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Failed to create field names in bulk');
         }
     }
 

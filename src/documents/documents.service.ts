@@ -541,7 +541,22 @@ Aaradhya Cyber`,
       let documentFields = {};
       if (body.document_fields) {
         try {
-          documentFields = JSON.parse(body.document_fields);
+          console.log('📝 Raw document_fields received:', body.document_fields);
+          const parsedFields = JSON.parse(body.document_fields);
+          console.log('📝 Parsed document_fields:', parsedFields);
+          
+          // Convert array format to object format if needed
+          if (Array.isArray(parsedFields)) {
+            documentFields = parsedFields.reduce((acc, field) => {
+              if (field.field_name && field.field_value) {
+                acc[field.field_name] = field.field_value;
+              }
+              return acc;
+            }, {});
+            console.log('📝 Converted array to object:', documentFields);
+          } else {
+            documentFields = parsedFields;
+          }
         } catch (error) {
           console.error('❌ JSON Parse Error:', error);
           throw new BadRequestException('Invalid JSON format for document_fields.');

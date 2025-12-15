@@ -526,11 +526,14 @@ Aaradhya Cyber`,
           const uploadResult = await this.hybridStorageService.uploadFile(file);
           const fileUrl = uploadResult.url; // Extract just the URL string
 
+          console.log(`✅ Uploaded file: ${file.originalname} to URL: ${fileUrl}`);
+          console.log('DocumentType:',file.originalname.split('.')[0]);
+
           // Use the document_types array from the body to set the document_type
           const customDocType = body.document_types ? body.document_types[index] : null;
 
           return {
-            document_type: customDocType || file.originalname.split('.')[0], // Use custom name if provided
+            document_type: customDocType || file.originalname, // Use custom name if provided
             mimetype: file.mimetype, // ✅ Store MIME type for safety
             file_path: fileUrl,
           };

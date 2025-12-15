@@ -527,13 +527,24 @@ Aaradhya Cyber`,
           const fileUrl = uploadResult.url; // Extract just the URL string
 
           console.log(`✅ Uploaded file: ${file.originalname} to URL: ${fileUrl}`);
-          console.log('DocumentType:',file.originalname.split('.')[0]);
+          console.log('DocumentType:', file.originalname.split('.')[0]);
 
           // Use the document_types array from the body to set the document_type
-          const customDocType = body.document_types ? body.document_types[index] : null;
+          let customDocType = null;
+          
+          if (body.document_types) {
+            // Handle both string and array formats
+            if (Array.isArray(body.document_types)) {
+              customDocType = body.document_types[index];
+            } else if (typeof body.document_types === 'string') {
+              // If it's a string, use it for the first file only
+              customDocType = index === 0 ? body.document_types : null;
+            }
+          }
+          
 
           return {
-            document_type: customDocType || file.originalname, // Use custom name if provided
+            document_type: customDocType || file.originalname.split('.')[0], // Use custom name if provided, fallback to filename without extension
             mimetype: file.mimetype, // ✅ Store MIME type for safety
             file_path: fileUrl,
           };
@@ -547,7 +558,7 @@ Aaradhya Cyber`,
           console.log('📝 Raw document_fields received:', body.document_fields);
           const parsedFields = JSON.parse(body.document_fields);
           console.log('📝 Parsed document_fields:', parsedFields);
-          
+
           // Convert array format to object format if needed
           if (Array.isArray(parsedFields)) {
             documentFields = parsedFields.reduce((acc, field) => {
@@ -598,15 +609,15 @@ Aaradhya Cyber`,
 
       if (body.wallet_payment === 'true' && body.application_fee) {
         applicationFee = parseFloat(body.application_fee);
-        
+
         if (isNaN(applicationFee) || applicationFee <= 0) {
           throw new BadRequestException('Invalid application fee.');
         }
 
         // ✅ Check wallet balance and deduct fee
         const deductionResult = await this.walletService.deductFromWallet(
-          userId, 
-          applicationFee, 
+          userId,
+          applicationFee,
           `Application fee for ${body.category_name} - ${body.subcategory_name}`
         );
 

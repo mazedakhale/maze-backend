@@ -79,6 +79,7 @@ export class PaymentRequestsService {
     requestId: number,
     status: string,
     rejectionReason?: string,
+    utrNumber?: string,
   ): Promise<PaymentRequest> {
     const request = await this.paymentRequestRepo.findOne({
       where: { request_id: requestId },
@@ -140,6 +141,10 @@ export class PaymentRequestsService {
 
     if (rejectionReason) {
       request.rejection_reason = rejectionReason;
+    }
+
+    if (utrNumber) {
+      request.utr_number = utrNumber;
     }
 
     return this.paymentRequestRepo.save(request);

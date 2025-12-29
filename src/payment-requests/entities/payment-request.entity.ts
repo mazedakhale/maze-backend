@@ -45,6 +45,9 @@ export class PaymentRequest {
   @Column({ type: 'varchar', length: 255, nullable: true })
   applicant_name: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  utr_number: string;
+
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
 

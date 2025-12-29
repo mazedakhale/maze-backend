@@ -14,6 +14,9 @@ export class Price {
     @Column('decimal', { precision: 10, scale: 2 })
     amount: number;
 
+    @Column('decimal', { precision: 10, scale: 2, default: 0 })
+    distributor_commission: number;
+
     @CreateDateColumn({ type: 'timestamp' })
     created_at: Date;
 }

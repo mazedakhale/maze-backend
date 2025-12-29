@@ -156,6 +156,9 @@ export class WalletService {
 
     /** Deduct amount from wallet with transaction safety */
     async deductFromWallet(userId: number, amount: number, description: string = 'Application fee deduction'): Promise<{ success: boolean; newBalance?: number; message?: string }> {
+        // Convert amount to number in case it comes as string
+        const amountNum = Number(amount);
+        
         // Find or create wallet
         let wallet = await this.walletRepo.findOne({ where: { userId } });
         if (!wallet) {
@@ -166,18 +169,18 @@ export class WalletService {
         // Convert balance to number for proper comparison
         const currentBalance = Number(wallet.balance);
         
-        console.log(`🔍 Deduction check - User ${userId}: Current balance: ₹${currentBalance}, Required: ₹${amount}`);
+        console.log(`🔍 Deduction check - User ${userId}: Current balance: ₹${currentBalance}, Required: ₹${amountNum}`);
 
         // Check if sufficient balance
-        if (currentBalance < amount) {
+        if (currentBalance < amountNum) {
             return { 
                 success: false, 
-                message: `Insufficient balance. Available: ₹${currentBalance.toFixed(2)}, Required: ₹${amount.toFixed(2)}` 
+                message: `Insufficient balance. Available: ₹${currentBalance.toFixed(2)}, Required: ₹${amountNum.toFixed(2)}` 
             };
         }
 
         // Deduct amount
-        wallet.balance = currentBalance - amount;
+        wallet.balance = currentBalance - amountNum;
         await this.walletRepo.save(wallet);
 
         // Create debit transaction
@@ -185,7 +188,7 @@ export class WalletService {
             this.txRepo.create({
                 wallet,
                 type: 'DEBIT',
-                amount: amount,
+                amount: amountNum,
                 status: 'completed',
                 merchantOrderId: null,
                 transactionId: null,
@@ -193,7 +196,7 @@ export class WalletService {
             })
         );
 
-        console.log(`✅ Wallet deduction successful: ₹${amount} deducted from user ${userId}, new balance: ₹${wallet.balance}`);
+        console.log(`✅ Wallet deduction successful: ₹${amountNum} deducted from user ${userId}, new balance: ₹${wallet.balance}`);
 
         return { 
             success: true, 
@@ -204,6 +207,9 @@ export class WalletService {
     /** Credit amount to admin wallet (for application fees) */
     async creditAdminWallet(amount: number, description: string = 'Application fee received'): Promise<{ success: boolean; newBalance?: number; message?: string }> {
         try {
+            // Convert amount to number in case it comes as string
+            const amountNum = Number(amount);
+            
             // Find admin user (role = 'Admin')
             const adminUser = await this.userRepo.findOne({ where: { role: UserRole.ADMIN } });
             
@@ -228,8 +234,8 @@ export class WalletService {
             }
 
             // Credit amount to admin wallet
-            adminWallet.balance = Number(adminWallet.balance) + amount;
-            adminWallet.totalBalance = Number(adminWallet.totalBalance) + amount;
+            adminWallet.balance = Number(adminWallet.balance) + amountNum;
+            adminWallet.totalBalance = Number(adminWallet.totalBalance) + amountNum;
             await this.walletRepo.save(adminWallet);
 
             // Create credit transaction
@@ -237,7 +243,7 @@ export class WalletService {
                 this.txRepo.create({
                     wallet: adminWallet,
                     type: 'CREDIT',
-                    amount: amount,
+                    amount: amountNum,
                     status: 'completed',
                     merchantOrderId: null,
                     transactionId: null,
@@ -245,7 +251,7 @@ export class WalletService {
                 })
             );
 
-            console.log(`✅ Admin wallet credited: ₹${amount} added to admin wallet, new balance: ₹${adminWallet.balance}`);
+            console.log(`✅ Admin wallet credited: ₹${amountNum} added to admin wallet, new balance: ₹${adminWallet.balance}`);
 
             return {
                 success: true,
@@ -263,6 +269,9 @@ export class WalletService {
     /** Credit amount to distributor wallet (for payment requests) */
     async creditDistributorWallet(distributorId: number, amount: number, description: string = 'Payment received'): Promise<{ success: boolean; newBalance?: number; message?: string }> {
         try {
+            // Convert amount to number in case it comes as string
+            const amountNum = Number(amount);
+            
             // Find or create distributor wallet
             let distributorWallet = await this.walletRepo.findOne({ where: { userId: distributorId } });
             if (!distributorWallet) {
@@ -276,8 +285,8 @@ export class WalletService {
             }
 
             // Credit amount to distributor wallet
-            distributorWallet.balance = Number(distributorWallet.balance) + amount;
-            distributorWallet.totalBalance = Number(distributorWallet.totalBalance) + amount;
+            distributorWallet.balance = Number(distributorWallet.balance) + amountNum;
+            distributorWallet.totalBalance = Number(distributorWallet.totalBalance) + amountNum;
             await this.walletRepo.save(distributorWallet);
 
             // Create credit transaction
@@ -285,7 +294,7 @@ export class WalletService {
                 this.txRepo.create({
                     wallet: distributorWallet,
                     type: 'CREDIT',
-                    amount: amount,
+                    amount: amountNum,
                     status: 'completed',
                     merchantOrderId: null,
                     transactionId: null,
@@ -293,7 +302,7 @@ export class WalletService {
                 })
             );
 
-            console.log(`✅ Distributor wallet credited: ₹${amount} added to distributor ${distributorId}, new balance: ₹${distributorWallet.balance}`);
+            console.log(`✅ Distributor wallet credited: ₹${amountNum} added to distributor ${distributorId}, new balance: ₹${distributorWallet.balance}`);
 
             return {
                 success: true,

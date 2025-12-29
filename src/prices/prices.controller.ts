@@ -20,7 +20,7 @@ export class PricesController {
     @Post()
     create(
         @Body()
-        body: { category_id: number; subcategory_id: number; amount: number },
+        body: { category_id: number; subcategory_id: number; amount: number; distributor_commission?: number },
     ): Promise<Price> {
         return this.pricesService.create(body);
     }
@@ -40,7 +40,7 @@ export class PricesController {
     replace(
         @Param('id', ParseIntPipe) id: number,
         @Body()
-        body: { category_id: number; subcategory_id: number; amount: number },
+        body: { category_id: number; subcategory_id: number; amount: number; distributor_commission?: number },
     ): Promise<Price> {
         return this.pricesService.replace(id, body);
     }

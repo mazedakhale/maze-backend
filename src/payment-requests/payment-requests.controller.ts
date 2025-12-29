@@ -54,12 +54,13 @@ export class PaymentRequestsController {
   @Put(':id/status')
   async updateStatus(
     @Param('id') id: number,
-    @Body() data: { status: string; rejection_reason?: string },
+    @Body() data: { status: string; rejection_reason?: string; utr_number?: string },
   ) {
     return this.paymentRequestsService.updateStatus(
       id,
       data.status,
       data.rejection_reason,
+      data.utr_number,
     );
   }
 }

@@ -17,8 +17,12 @@ export class PricesService {
         category_id: number;
         subcategory_id: number;
         amount: number;
+        distributor_commission?: number;
     }): Promise<Price> {
-        const price = this.priceRepo.create(data);
+        const price = this.priceRepo.create({
+            ...data,
+            distributor_commission: data.distributor_commission || 0,
+        });
         return this.priceRepo.save(price);
     }
 
@@ -54,7 +58,7 @@ export class PricesService {
 
     async replace(
         id: number,
-        data: { category_id: number; subcategory_id: number; amount: number },
+        data: { category_id: number; subcategory_id: number; amount: number; distributor_commission?: number },
     ): Promise<Price> {
         // 1) fetch existing (throws 404 if not found)
         const price = await this.findOne(id);
@@ -63,6 +67,7 @@ export class PricesService {
         price.category_id = data.category_id;
         price.subcategory_id = data.subcategory_id;
         price.amount = data.amount;
+        price.distributor_commission = data.distributor_commission !== undefined ? data.distributor_commission : 0;
 
         // 3) save back to the DB
         return this.priceRepo.save(price);

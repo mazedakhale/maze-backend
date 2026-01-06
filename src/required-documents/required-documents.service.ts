@@ -6,6 +6,7 @@ import { Category } from '../categories/entities/categories.entity';
 import { Subcategory } from '../subcategories/entities/subcategories.entity';
 import { S3Service } from './s3.service';
 import { HybridStorageService } from '../hybridStorageSystem/hybrid-storage.service';
+import { DeletionCodeService } from '../common/deletion-code.service';
 import { Express } from 'express';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class RequiredDocumentsService {
         
         private readonly s3Service: S3Service, // Keep for backward compatibility
         private readonly hybridStorageService: HybridStorageService, // Add HybridStorageService
+        private readonly deletionCodeService: DeletionCodeService,
     ) { }
 
     async create(
@@ -93,7 +95,12 @@ export class RequiredDocumentsService {
         return this.requiredDocumentRepository.save(requiredDocument);
     }
 
-    async remove(id: number): Promise<{ message: string }> {
+    async remove(id: number, code?: string): Promise<{ message: string }> {
+        // Verify deletion code if provided
+        if (code) {
+            await this.deletionCodeService.verifyStaticCode(code);
+        }
+
         const requiredDocument = await this.findOne(id);
         
         // ✅ Delete associated file using HybridStorageService before removing the record

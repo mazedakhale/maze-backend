@@ -76,8 +76,11 @@ export class RequiredDocumentsController {
     }
 
     @Delete(':id')
-    async remove(@Param('id', ParseIntPipe) id: number) {
-        return this.requiredDocumentsService.remove(id);
+    async remove(
+        @Param('id', ParseIntPipe) id: number,
+        @Body('code') code?: string,
+    ) {
+        return this.requiredDocumentsService.remove(id, code);
     }
 
     @Get(':categoryId/:subcategoryId')

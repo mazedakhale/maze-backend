@@ -40,6 +40,7 @@ import { PaymentRequestsModule } from './payment-requests/payment-requests.modul
 import { ImportantDocumentsModule } from './important-documents/important-documents.module';
 import { CommonModule } from './common/common.module';
 import { DistributorCommissionsModule } from './distributor-commissions/distributor-commissions.module';
+import { DistributorPaymentDetailsModule } from './distributor-payment-details/distributor-payment-details.module';
 
 config(); // Load .env early
 
@@ -103,6 +104,7 @@ config(); // Load .env early
     PaymentRequestsModule,
     ImportantDocumentsModule,
     DistributorCommissionsModule,
+    DistributorPaymentDetailsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

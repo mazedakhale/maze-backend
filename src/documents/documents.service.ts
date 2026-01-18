@@ -533,12 +533,24 @@ Aaradhya Cyber`,
           let customDocType = null;
           
           if (body.document_types) {
+            let documentTypesArray = body.document_types;
+            
+            // Parse if it's a JSON string
+            if (typeof body.document_types === 'string') {
+              try {
+                documentTypesArray = JSON.parse(body.document_types);
+              } catch (e) {
+                // If parsing fails, treat as single string value
+                documentTypesArray = index === 0 ? body.document_types : null;
+              }
+            }
+            
             // Handle both string and array formats
-            if (Array.isArray(body.document_types)) {
-              customDocType = body.document_types[index];
-            } else if (typeof body.document_types === 'string') {
+            if (Array.isArray(documentTypesArray)) {
+              customDocType = documentTypesArray[index];
+            } else {
               // If it's a string, use it for the first file only
-              customDocType = index === 0 ? body.document_types : null;
+              customDocType = index === 0 ? documentTypesArray : null;
             }
           }
           
